@@ -1,0 +1,33 @@
+#log{
+    border-radius: 105px;
+    width: 100%;
+    height: 40px;
+}
+#log2{
+    text-align: center;
+    margin-left: 40%;
+}
+#log:hover{
+    border: 2px solid red;
+}
+#log-submit{
+    border-radius: 105px;
+    padding-left: 75px;
+    padding-right: 75px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+#logo-login{
+    margin-left: 10px;
+    width: 130px;
+    height: 50px;
+}
+
+#dashboard-option{
+    width: 100%;
+    height: 50px;
+    background-color: rgb(235, 229, 221);
+}
+#color{
+    background-color: rgb(235, 229, 221);
+}

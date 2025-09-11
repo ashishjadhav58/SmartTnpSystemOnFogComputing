@@ -5,55 +5,64 @@ const { v4: uuidv4 } = require("uuid");
 
 const region = "ap-south-1";
 const table = "EvolveAuthTable";
-
 const table1 = "FogEvolveDriveTables";
 const table2 = "FogEvolveTpoEventTables";
 const table3 = "FogEvolveResourceTables";
 const table4 = "FogEvolveMessageTables";
 const table5 = "FogEvolveAttendanceTables";
 
-const dynamoClient = new DynamoDBClient({ region: "ap-south-1" });
+const dynamoClient = new DynamoDBClient({ region });
 const docclient = DynamoDBDocumentClient.from(dynamoClient);
 
-
 const fogServers = [
-    "https://026898f49fc2.ngrok-free.app"
+    "https://98afe68b5741.ngrok-free.app",
+    "https://f82b43b55a75.ngrok-free.app"
 ];
 
+// Utility to ensure numeric input
+const safeNumber = (val) => {
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+};
+
+// Improved fog status fetcher
 const getIpResult = async (url) => {
-    console.log("getIpResult",url);
+    console.log("Checking fog server:", url);
     try {
         const response = await axios.get(`${url}/status`);
         const { cpu, memory, activeJobs, status } = response.data;
-        console.log(response.data);
+
         if (status !== "up") {
-            throw new Error("Fog is not active");
+            throw new Error("Fog server not up");
         }
 
-        const loadScore = cpu + memory + activeJobs * 10;
+        const loadScore = safeNumber(cpu) + safeNumber(memory) + safeNumber(activeJobs) * 10;
 
         return {
             ip: url,
-            cpu,
-            memory,
-            activeJobs,
+            cpu: safeNumber(cpu),
+            memory: safeNumber(memory),
+            activeJobs: safeNumber(activeJobs),
             status,
             loadScore
         };
     } catch (err) {
+        console.error(`❌ Error getting status for ${url}: ${err.message}`);
         return {
             ip: url,
             status: "down",
             loadScore: Number.POSITIVE_INFINITY,
-            error: err.message || "Unavailable"
+            error: err.message
         };
     }
 };
 
+// Chooses the best fog server
 const getBestFogServer = async () => {
-    console.log("getBestFogServer");
-
+    console.log("Fetching best fog server...");
     const results = await Promise.all(fogServers.map(getIpResult));
+
+    console.log("Fog server status summary:", results);
 
     const available = results.filter(server => server.status === "up");
 
@@ -61,467 +70,171 @@ const getBestFogServer = async () => {
         return { message: "No active fog servers found" };
     }
 
-    const best = available.reduce((min, curr) =>
-        curr.loadScore < min.loadScore ? curr : min
-    );
+    const best = available.reduce((min, curr) => curr.loadScore < min.loadScore ? curr : min);
+    console.log("Selected best fog server:", best.ip);
 
     return best.ip;
 };
 
-
 exports.handler = async (event) => {
-    console.log(event);
+    console.log("Incoming event:", JSON.stringify(event));
     const method = event.httpMethod;
     const path = event.path;
+
     const headers = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST,GET,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
         "Content-Type": "application/json"
     };
+
     try {
-        if (method == "OPTIONS") {
+        if (method === "OPTIONS") {
             return {
                 statusCode: 200,
                 headers,
-                body: JSON.stringify({ Message: "Connection Establish Successfully ... " })
-            }
+                body: JSON.stringify({ message: "Connection Established Successfully." })
+            };
         }
+
         if (method === "POST" && path.endsWith("/signin")) {
-            console.log("Signin Method");
+            console.log("Processing /signin");
+
             const { username, password } = JSON.parse(event.body);
-            console.log(username, password);
-            const data = await docclient.send(new GetCommand({ TableName: table, Key: { email: username } }))
-            console.log(data.Item);
-            const backendip = await getBestFogServer();
-            console.log("best ip",backendip);
-            return ({
-                statusCode: 200,
-                headers,
-                body: JSON.stringify({
-                    data: data,
-                    ip: backendip,
-                    message: "Login Successful"
-                })
-            })
-        }
-        if(method === "POST" && path.endsWith("/syncdata")){
-            console.log("request is coming");
-            try{
-                const response = JSON.parse(event.body);
-                const synctable = response.syncTable;
-                switch(synctable){
-                    case "1": {
-                        try {
-                            const {
-                                id,
-                                updatedAt,
-                                createdAt,
-                                status,
-                                registrationLink,
-                                description,
-                                driveDate,
-                                eligibilityCriteria,
-                                salaryPackage,
-                                jobRole,
-                                companyName,
-                                sourcefog
-                            } = response;
-                    
-                            console.log("1");
-                    
-                            const data = {
-                                id,
-                                updatedAt,
-                                createdAt,
-                                status,
-                                registrationLink,
-                                description,
-                                driveDate,
-                                eligibilityCriteria,
-                                salaryPackage,
-                                jobRole,
-                                companyName
-                            };
-                    
-                            console.log("2");
-                    
-                            // Save data into DynamoDB
-                            await docclient.send(new PutCommand({ TableName: table1, Item: data }));
-                            console.log("3");
-                    
-                            // Broadcast to all fog servers except the sourcefog
-                            const broadcastPromises = fogServers
-                                .filter((server) => server !== sourcefog) // exclude sender fog
-                                .map(async (server) => {
-                                    try {
-                                        const res = await axios.post(`${server}/fogsynctable1`, data);
-                                        console.log(`✅ Sent to ${server}:`, res.data);
-                                    } catch (err) {
-                                        console.error(`❌ Error sending to ${server}:`, err.message);
-                                    }
-                                });
-                    
-                            // Wait for all broadcasts to complete
-                            await Promise.all(broadcastPromises);
-                    
-                            console.log("4");
-                    
-                            return {
-                                statusCode: 200,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "User is successfully added and broadcasted"
-                                })
-                            };
-                        } catch (err) {
-                            console.error("❌ Error in case 1 block:", err.message);
-                            return {
-                                statusCode: 500,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "Failed to add user or broadcast",
-                                    error: err.message
-                                })
-                            };
-                        }
-                    }
-                    case "2": {
-                        try {
-                            const {
-                                id,
-                                lecturer,
-                                lectureName,
-                                eventDateTime,
-                                venue,
-                                description,
-                                status,
-                                sourcefog
-                            } = response;  // assuming response carries event data
-                    
-                            console.log("Case 2 started");
-                    
-                            const data = {
-                                id,
-                                lecturer,
-                                lectureName,
-                                eventDateTime,
-                                venue,
-                                description,
-                                status
-                            };
-                    
-                            console.log("Saving event to DynamoDB...");
-                    
-                            // Save event into DynamoDB
-                            await docclient.send(new PutCommand({ TableName: table2, Item: data }));
-                    
-                            console.log("Event saved, broadcasting to other fog nodes...");
-                    
-                            // Broadcast to other fog servers
-                            const broadcastPromises = fogServers
-                                .filter((server) => server !== sourcefog) // exclude sender fog
-                                .map(async (server) => {
-                                    try {
-                                        const res = await axios.post(`${server}/fogsynctable2`, data);
-                                        console.log(`✅ Event sent to ${server}:`, res.data);
-                                    } catch (err) {
-                                        console.error(`❌ Error sending event to ${server}:`, err.message);
-                                    }
-                                });
-                    
-                            // Wait for all broadcasts
-                            await Promise.all(broadcastPromises);
-                    
-                            console.log("Case 2 completed");
-                    
-                            return {
-                                statusCode: 200,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "Event successfully added and broadcasted"
-                                })
-                            };
-                        } catch (err) {
-                            console.error("❌ Error in case 2 block:", err.message);
-                            return {
-                                statusCode: 500,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "Failed to add event or broadcast",
-                                    error: err.message
-                                })
-                            };
-                        }
-                    }
-                    case "3": {
-                        try {
-                            const {
-                                id,
-                                resourceName,
-                                description,
-                                category,
-                                driveLink,
-                                uploadedBy,
-                                uploadDate,
-                                sourcefog
-                            } = response;  // assuming resource data comes in response
-                    
-                            console.log("Case 3 started");
-                    
-                            const data = {
-                                id,
-                                resourceName,
-                                description,
-                                category,
-                                driveLink,
-                                uploadedBy,
-                                uploadDate
-                            };
-                    
-                            console.log("Saving resource to DynamoDB...");
-                    
-                            // Save resource into DynamoDB
-                            await docclient.send(new PutCommand({ TableName: table3, Item: data }));
-                    
-                            console.log("Resource saved, broadcasting to other fog nodes...");
-                    
-                            // Broadcast to other fog servers except the source
-                            const broadcastPromises = fogServers
-                                .filter((server) => server !== sourcefog)
-                                .map(async (server) => {
-                                    try {
-                                        const res = await axios.post(`${server}/fogsynctable3`, data);
-                                        console.log(`✅ Resource sent to ${server}:`, res.data);
-                                    } catch (err) {
-                                        console.error(`❌ Error sending resource to ${server}:`, err.message);
-                                    }
-                                });
-                    
-                            // Wait for all broadcasts to finish
-                            await Promise.all(broadcastPromises);
-                    
-                            console.log("Case 3 completed");
-                    
-                            return {
-                                statusCode: 200,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "Resource successfully added and broadcasted"
-                                })
-                            };
-                        } catch (err) {
-                            console.error("❌ Error in case 3 block:", err.message);
-                            return {
-                                statusCode: 500,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "Failed to add resource or broadcast",
-                                    error: err.message
-                                })
-                            };
-                        }
-                    }                    
-                    case "4": {
-                        try {
-                            const {
-                                id,
-                                sender,
-                                receiver,
-                                msg,
-                                read,
-                                sourcefog
-                            } = response;  // assuming message body comes from response
-                    
-                            console.log("Case 4 started");
-                    
-                            const data = {
-                                id,
-                                sender,
-                                receiver,
-                                msg,
-                                read: read ?? false  // default false if not passed
-                            };
-                    
-                            console.log("Saving message to DynamoDB...");
-                    
-                            // Save message into DynamoDB
-                            await docclient.send(new PutCommand({ TableName: table4, Item: data }));
-                    
-                            console.log("Message saved, broadcasting to other fog nodes...");
-                    
-                            // Broadcast to all fog servers except the sourcefog
-                            const broadcastPromises = fogServers
-                                .filter((server) => server !== sourcefog)
-                                .map(async (server) => {
-                                    try {
-                                        const res = await axios.post(`${server}/fogsynctable4`, data);
-                                        console.log(`✅ Message sent to ${server}:`, res.data);
-                                    } catch (err) {
-                                        console.error(`❌ Error sending message to ${server}:`, err.message);
-                                    }
-                                });
-                    
-                            // Wait for all broadcasts to finish
-                            await Promise.all(broadcastPromises);
-                    
-                            console.log("Case 4 completed");
-                    
-                            return {
-                                statusCode: 200,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "Message successfully added and broadcasted"
-                                })
-                            };
-                        } catch (err) {
-                            console.error("❌ Error in case 4 block:", err.message);
-                            return {
-                                statusCode: 500,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "Failed to add message or broadcast",
-                                    error: err.message
-                                })
-                            };
-                        }
-                    }
-                    case "5": {
-                        try {
-                            const {
-                                id,
-                                userEmail,
-                                eventId,
-                                eventName,
-                                views,
-                                feedback,
-                                suggestion,
-                                markedAt,
-                                sourcefog
-                            } = response;  // coming from req.body or event.body
-                    
-                            console.log("Case 5 started");
-                    
-                            const data = {
-                                id,
-                                userEmail,
-                                eventId,
-                                eventName,
-                                views,
-                                feedback,
-                                suggestion,
-                                markedAt
-                            };
-                    
-                            console.log("Saving attendance to DynamoDB...");
-                    
-                            // Save attendance into DynamoDB
-                            await docclient.send(new PutCommand({ TableName: table5, Item: data }));
-                    
-                            console.log("Attendance saved, broadcasting to other fog nodes...");
-                    
-                            // Broadcast to all fog servers except the sourcefog
-                            const broadcastPromises = fogServers
-                                .filter((server) => server !== sourcefog)
-                                .map(async (server) => {
-                                    try {
-                                        const res = await axios.post(`${server}/fogsynctable5`, data);
-                                        console.log(`✅ Attendance sent to ${server}:`, res.data);
-                                    } catch (err) {
-                                        console.error(`❌ Error sending attendance to ${server}:`, err.message);
-                                    }
-                                });
-                    
-                            // Wait for all broadcasts to finish
-                            await Promise.all(broadcastPromises);
-                    
-                            console.log("Case 5 completed");
-                    
-                            return {
-                                statusCode: 200,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "Attendance successfully added and broadcasted"
-                                })
-                            };
-                        } catch (err) {
-                            console.error("❌ Error in case 5 block:", err.message);
-                            return {
-                                statusCode: 500,
-                                headers,
-                                body: JSON.stringify({
-                                    message: "Failed to add attendance or broadcast",
-                                    error: err.message
-                                })
-                            };
-                        }
-                    }
-                }       
-            }
-            catch(err){
+
+            const data = await docclient.send(new GetCommand({ TableName: table, Key: { email: username } }));
+
+            if (!data.Item || data.Item.password !== password) {
                 return {
-                    statusCode: 502,
+                    statusCode: 401,
                     headers,
-                    body: JSON.stringify({ err: "Server Error 502 ... " })
-                }
-            }
-        }
-        if (method === "POST" && path.endsWith("/signup")){
-
-            const { username, password, email, classemail, tpoemail, accesstype } = JSON.parse(event.body);
-            const id = uuidv4();
-            const data = {
-                id: id,
-                username: username,
-                email: email,
-                classemail: classemail,
-                tpoemail: tpoemail,
-                accesstype: accesstype,
-                password: password,
-                updatedAt: new Date().toISOString(),
+                    body: JSON.stringify({ message: "Invalid username or password" })
+                };
             }
 
-            fogServers.forEach((e,index)=>{
-                axios.post(`${e}/NewUser`, data)
-                .then((res)=>{
-                    console.log(res.data);
-                })
-                .catch((err)=>{
-                    console.log(err);
-                })
-            }
-            );
+            const backendServer = await getBestFogServer();
 
-            var existUN = await docclient.send(new GetCommand({ TableName: table, Key: { email } }));
-
-            if (existUN.Item) {
+            if (!backendServer || typeof backendServer !== "string") {
                 return {
-                    statusCode: 404,
+                    statusCode: 503,
                     headers,
                     body: JSON.stringify({
-                        message: "Username is already exist",
+                        message: backendServer.message || "Fog servers unavailable"
                     })
-                }
+                };
             }
-            await docclient.send(new PutCommand({ TableName: table, Item: data }))
+
             return {
                 statusCode: 200,
                 headers,
                 body: JSON.stringify({
-                    message: "User is Sccessfully added",
-                    userId: id
+                    data: data.Item,
+                    ip: backendServer,
+                    message: "Login Successful"
                 })
-            }
+            };
         }
-    }
-    catch (err) {
-        console.log(err);
-        console.log(method);
-        console.log(path);
+
+        if (method === "POST" && path.endsWith("/signup")) {
+            const { username, password, email, classemail, tpoemail, accesstype } = JSON.parse(event.body);
+            const id = uuidv4();
+
+            const existingUser = await docclient.send(new GetCommand({ TableName: table, Key: { email } }));
+            if (existingUser.Item) {
+                return {
+                    statusCode: 409,
+                    headers,
+                    body: JSON.stringify({ message: "User already exists" })
+                };
+            }
+
+            const data = {
+                id,
+                username,
+                email,
+                classemail,
+                tpoemail,
+                accesstype,
+                password,
+                updatedAt: new Date().toISOString(),
+            };
+
+            await docclient.send(new PutCommand({ TableName: table, Item: data }));
+
+            // Notify other fog nodes
+            fogServers.forEach(server => {
+                axios.post(`${server}/NewUser`, data)
+                    .then(res => console.log(`✅ Sent to ${server}:`, res.data))
+                    .catch(err => console.error(`❌ Error sending to ${server}:`, err.message));
+            });
+
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({ message: "User successfully registered", userId: id })
+            };
+        }
+
+        if (method === "POST" && path.endsWith("/syncdata")) {
+            console.log("Syncing data...");
+            const response = JSON.parse(event.body);
+            const synctable = response.syncTable;
+            const sourcefog = response.sourcefog;
+
+            const tableMap = {
+                "1": { tableName: table1, endpoint: "/fogsynctable1" },
+                "2": { tableName: table2, endpoint: "/fogsynctable2" },
+                "3": { tableName: table3, endpoint: "/fogsynctable3" },
+                "4": { tableName: table4, endpoint: "/fogsynctable4" },
+                "5": { tableName: table5, endpoint: "/fogsynctable5" }
+            };
+
+            if (!tableMap[synctable]) {
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ message: "Invalid syncTable type" })
+                };
+            }
+
+            const { tableName, endpoint } = tableMap[synctable];
+
+            const { syncTable, sourcefog: _, ...dataToStore } = response;
+
+            // Save to local DynamoDB
+            await docclient.send(new PutCommand({ TableName: tableName, Item: dataToStore }));
+
+            // Broadcast to other fog servers
+            const broadcastPromises = fogServers
+                .filter(server => server !== sourcefog)
+                .map(server => {
+                    return axios.post(`${server}${endpoint}`, dataToStore)
+                        .then(res => console.log(`✅ Broadcasted to ${server}:`, res.data))
+                        .catch(err => console.error(`❌ Failed to broadcast to ${server}:`, err.message));
+                });
+
+            await Promise.all(broadcastPromises);
+
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({ message: "Data successfully synced and broadcasted" })
+            };
+        }
+
+        // Fallback for undefined routes
+        return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ message: "Invalid route or method." })
+        };
+
+    } catch (err) {
+        console.error("❌ General error:", err);
         return {
             statusCode: 502,
             headers,
-            body: JSON.stringify({ err: "Server Error 502 ... " })
-        }
+            body: JSON.stringify({ message: "Server Error 502", error: err.message })
+        };
     }
-}
+};

@@ -1,0 +1,5 @@
+node_modules/ 
+*.zip 
+backend/node_modules/
+vite-project/node_modules/
+Synchronization Lamba/node_modules/

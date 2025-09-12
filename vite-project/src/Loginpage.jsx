@@ -31,8 +31,10 @@ export default function Loginpage() {
           password: data.password
         }
       );
+      console.log(response);
 
-      const user = response.data?.data?.Item;
+      const user = response.data?.data;
+      console.log(user);
       const fogIp = response.data.ip;
       console.log(fogIp)
       if (user) {

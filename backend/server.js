@@ -1,7 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const fogapi = "https://98afe68b5741.ngrok-free.app";
+const fogapi = "https://97ccc07694d2.ngrok-free.app";
 require("dotenv").config();
 const cron = require("node-cron");
 const userdata = require("./Models/userdata.js");

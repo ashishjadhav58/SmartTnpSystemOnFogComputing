@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, Form } from 'react-bootstrap';
+// Removed react-bootstrap due to bundling errors
 
   import { useSelector } from "react-redux";
 export default function StSelfattendence() {

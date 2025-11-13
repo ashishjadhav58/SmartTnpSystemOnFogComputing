@@ -266,10 +266,15 @@ export default function ResumePage() {
                 <strong>Email:</strong> {resume.email}
               </p>
               <p className="mb-3">
-                <strong>Resume URL:</strong>{' '}
-                <a href={resume.url} target="_blank" rel="noopener noreferrer" className="text-primary">
-                  {resume.url}
-                </a>
+                <strong>Resume:</strong>{' '}
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-primary ms-2"
+                  onClick={() => window.open(resume.url, '_blank', 'noopener')}
+                  aria-label="Open resume in new tab"
+                >
+                  Show
+                </button>
               </p>
               <p className="text-muted small">
                 <strong>Last Updated:</strong> {new Date(resume.updatedAt).toLocaleString()}

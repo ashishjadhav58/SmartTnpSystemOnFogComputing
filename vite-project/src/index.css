@@ -1,0 +1,87 @@
+/* Mobile-first responsive helpers and global adjustments */
+:root {
+	--base-font: 14px;
+}
+
+html, body, #root {
+	height: 100%;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+	font-size: var(--base-font);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Improve container spacing on small screens */
+.container {
+	padding-left: 0.75rem;
+	padding-right: 0.75rem;
+}
+
+/* Make primary action buttons easier to tap on mobile */
+.btn-responsive {
+	min-height: 40px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+/* On narrow viewports make responsive buttons full-width */
+@media (max-width: 576px) {
+	.btn-responsive {
+		width: 100% !important;
+	}
+
+	/* Make cards and modals more compact and readable */
+	.card {
+		margin-bottom: 0.75rem;
+	}
+
+	.modal-dialog {
+		max-width: 95%;
+		margin: 1rem auto;
+	}
+
+	.modal-content {
+		border-radius: 8px;
+	}
+
+	/* Make sidebars stack above content (if present) */
+	.sidebar, .left-sidebar {
+		width: 100% !important;
+		position: relative !important;
+		margin-bottom: 0.75rem;
+	}
+}
+
+/* Slightly larger base font for tablets/desktops */
+@media (min-width: 768px) {
+	:root { --base-font: 15px; }
+}
+@media (min-width: 1200px) {
+	:root { --base-font: 16px; }
+}
+
+/* Tables: allow horizontal scroll on mobile */
+.table-responsive-wrap {
+	width: 100%;
+	overflow-x: auto;
+}
+
+/* Small utility: truncate long text with ellipsis */
+.truncate {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Improve form controls spacing on small screens */
+.form-control {
+	padding: .45rem .65rem;
+}
+
+/* Ensure clickable areas have enough touch target */
+.clickable {
+	touch-action: manipulation;
+}
+
+/* End of responsive helpers */

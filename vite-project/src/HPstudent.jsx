@@ -88,8 +88,38 @@ export default function HPstudent() {
 
             </div>
         </div>
+        {/* Mobile navbar: visible only on xs screens */}
+        <div className="row d-block d-sm-none">
+          <div className="col-12 p-2 bg-white border-bottom">
+            <div className="d-flex justify-content-between align-items-center">
+              <img src="logo.png" alt="logo" style={{height:32}} />
+              <button className="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNav" aria-controls="mobileNav">
+                Menu
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Offcanvas nav for mobile */}
+        <div className="offcanvas offcanvas-start" tabIndex="-1" id="mobileNav" aria-labelledby="mobileNavLabel">
+          <div className="offcanvas-header">
+            <h5 className="offcanvas-title" id="mobileNavLabel">Menu</h5>
+            <button type="button" className="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+          </div>
+          <div className="offcanvas-body">
+            <div className="d-grid gap-2">
+              <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>Placement Drive</button>
+              <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>T & P Event</button>
+              <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>T & P Resouces</button>
+              <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>self attendence</button>
+              <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>Message</button>
+              <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>Resume</button>
+            </div>
+          </div>
+        </div>
+
         <div className="row">
-            <div className="col-sm-2 border border-secondary  text-start">
+            <div className="col-sm-2 border border-secondary  text-start d-none d-sm-block">
             <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >Placement Drive</button>
             <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >T & P Event </button>
             <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >T & P Resouces</button>

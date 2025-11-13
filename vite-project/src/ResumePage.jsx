@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-
 export default function ResumePage() {
   const [user, setUser] = useState(null);
   const [resume, setResume] = useState(null);
@@ -269,7 +268,7 @@ export default function ResumePage() {
                 <strong>Resume:</strong>{' '}
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-primary ms-2"
+                  className="btn btn-sm btn-outline-primary ms-2 btn-responsive clickable"
                   onClick={() => window.open(resume.url, '_blank', 'noopener')}
                   aria-label="Open resume in new tab"
                 >
@@ -280,7 +279,7 @@ export default function ResumePage() {
                 <strong>Last Updated:</strong> {new Date(resume.updatedAt).toLocaleString()}
               </p>
               <button
-                className="btn btn-warning me-2"
+                className="btn btn-warning me-2 btn-responsive"
                 onClick={openReplaceForm}
                 disabled={loading}
               >
@@ -295,7 +294,7 @@ export default function ResumePage() {
 
           {!resume && (
             <button
-              className="btn btn-success"
+              className="btn btn-success btn-responsive"
               onClick={openAddForm}
               disabled={loading}
             >
@@ -425,7 +424,7 @@ export default function ResumePage() {
                 </button>
                 <button
                   type="button"
-                  className={`btn ${formMode === 'add' ? 'btn-success' : 'btn-warning'}`}
+                  className={`btn ${formMode === 'add' ? 'btn-success' : 'btn-warning'} btn-responsive`}
                   onClick={handleSubmit}
                   disabled={loading}
                 >

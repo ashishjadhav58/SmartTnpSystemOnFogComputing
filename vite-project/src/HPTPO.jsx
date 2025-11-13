@@ -30,6 +30,15 @@ export default function HPTPO() {
     localStorage.removeItem("user");
     setislog(false);
   }
+  const closeMobileNav = () => {
+    try {
+      const el = document.querySelector('.offcanvas.show');
+      if (el && window.bootstrap) {
+        const bs = window.bootstrap.Offcanvas.getInstance(el) || new window.bootstrap.Offcanvas(el);
+        bs.hide();
+      }
+    } catch (e) {}
+  }
   const [choice,setchoice] = useState(1)
   function actionperform(e){
     switch(e.target.innerText){
@@ -91,11 +100,13 @@ export default function HPTPO() {
                   </div>
                   <div className="offcanvas-body">
                     <div className="d-grid gap-2">
-                      <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>Data Management</button>
-                      <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>T & P Event</button>
-                      <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>T & P Resouces</button>
-                      <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>Upcoming Drives</button>
-                      <button onClick={(event)=>actionperform(event)} className='btn btn-light text-start'>Messages</button>
+                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>Data Management</button>
+                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>T & P Event</button>
+                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>T & P Resouces</button>
+                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>Upcoming Drives</button>
+                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>Messages</button>
+                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>PROFILE</button>
+                      <button onClick={()=>{ logout(); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-danger text-start'>LOGOUT</button>
                     </div>
                   </div>
                 </div>

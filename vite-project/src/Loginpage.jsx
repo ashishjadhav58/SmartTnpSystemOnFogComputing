@@ -78,7 +78,7 @@ export default function Loginpage() {
     <div>
       <div className="conatiner-fluid bg bg-grey pd-5">
         <div className="row justify-content-center">
-          <div className="col-sm-8 text-center mt-5">
+          <div className="col-12 col-md-8 text-center mt-4">
             <div className="row">
               <div className="col-sm-1">
                 <img className='ms-5' src="logo.png" alt="Logo" id="logo-login" />
@@ -87,7 +87,7 @@ export default function Loginpage() {
             <br /><br />
             <h1 className='mt-5'>LOGIN TO YOUR ACCOUNT</h1>
             <div className="row justify-content-center">
-              <div className="col-sm-6">
+              <div className="col-12 col-md-6">
                 <form onSubmit={checkdata}>
                   <hr /><br />
                   <input
@@ -108,7 +108,7 @@ export default function Loginpage() {
                     className="bg bg-grey border border-grey form-control"
                     placeholder='  Password'
                   /><br /><br />
-                  <button id='log-submit' type='submit' className='btn btn-success'><b>Sign In</b></button>
+                  <button id='log-submit' type='submit' className='btn btn-success btn-responsive'><b>Sign In</b></button>
                 </form>
                 <br /><br /><br /><br /><br /><br />
 
@@ -124,11 +124,11 @@ export default function Loginpage() {
             </div>
           </div>
 
-          <div className="col-sm-4 bg bg-success text-center">
-            <br /><br /><br /><br /><br /><br /><br /><br /><br />
+          <div className="col-12 col-md-4 bg bg-success text-center py-4">
+            <br />
             <h1 className='text text-light'>Welcome to Sign In</h1><br />
             <h6 className='text text-light'>Don't have an account?</h6><br />
-            <button id='log-submit' onClick={changes} className='bg bg-light border border-light'>
+            <button id='log-submit' onClick={changes} className='bg bg-light border border-light btn-responsive'>
               <b>Sign Up</b>
             </button>
             {

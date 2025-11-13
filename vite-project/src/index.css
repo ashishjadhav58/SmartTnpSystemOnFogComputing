@@ -53,6 +53,65 @@ html, body, #root {
 	}
 }
 
+	/* Center main components and slightly enlarge on very small screens */
+	@media (max-width: 576px) {
+		:root { --base-font: 16px; }
+
+		/* Make rows center their children to create a stacked centered layout */
+		.container-fluid > .row,
+		.container > .row {
+			justify-content: center;
+		}
+
+		/* Force common column blocks to a centered max-width so components appear in the middle */
+		.container-fluid .col-sm-9,
+		.container-fluid .col-sm-8,
+		.container-fluid .col-sm-7,
+		.container-fluid .col-sm-6,
+		.container-fluid .col-sm-5,
+		.container-fluid .col-sm-4,
+		.container-fluid .col-sm-3,
+		.container .col-12,
+		.container .col {
+			max-width: 95% !important;
+			flex: 0 0 95% !important;
+			margin-left: auto !important;
+			margin-right: auto !important;
+		}
+
+		/* Slightly larger, more touch-friendly controls */
+		.card, .modal-content {
+			font-size: 1.05rem;
+			padding: 0.75rem;
+		}
+
+		.btn, .btn-responsive {
+			padding: 0.65rem 0.9rem;
+			font-size: 1rem;
+		}
+
+		/* Center logos and images in header areas */
+		#logo-login, img#logo-login {
+			display: block;
+			margin-left: auto;
+			margin-right: auto;
+			max-width: 140px;
+			height: auto;
+		}
+
+		/* Make form inputs and text more legible */
+		.form-control {
+			font-size: 1rem;
+		}
+
+		/* Ensure offcanvas body buttons are readable and centered */
+		.offcanvas .btn {
+			text-align: left;
+			font-size: 1rem;
+			padding: 0.65rem 0.8rem;
+		}
+	}
+
 /* Slightly larger base font for tablets/desktops */
 @media (min-width: 768px) {
 	:root { --base-font: 15px; }

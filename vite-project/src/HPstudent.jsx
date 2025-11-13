@@ -74,12 +74,12 @@ export default function HPstudent() {
 
       <div className="container-fluid bg bg-light">
         <div className="row border border-secondary">
-        <div className="col-sm-1">
-
-</div>
-            <div className="col-sm-4 p-4 text-center">
-                <img id="logo-login" src="logo.png" alt="" />
-            </div>
+          <div className="col-sm-4 d-none d-sm-block">
+            <button className='border border-light  btn btn-secondary' onClick={(event)=>actionperform(event)}><b>PROFILE </b></button>
+          </div>
+          <div className="col-sm-4 d-none d-sm-block">
+            <button className='border border-light  btn btn-secondary' onClick={logout}><b>LOGOUT &#10238;</b></button>
+          </div>
             <div className="col-sm-1">
 
             </div>

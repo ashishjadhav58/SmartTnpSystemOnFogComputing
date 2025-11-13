@@ -1,33 +1,48 @@
+/* Tighter, friendlier controls using theme variables */
 #log{
-    border-radius: 105px;
+    border-radius: 999px;
     width: 100%;
-    height: 40px;
+    height: 44px;
+    padding: 0 16px;
+    transition: box-shadow .12s ease, transform .06s ease;
+}
+#log:focus {
+    box-shadow: 0 4px 12px rgba(2,6,23,0.06);
+    transform: translateY(-1px);
 }
 #log2{
     text-align: center;
     margin-left: 40%;
 }
 #log:hover{
-    border: 2px solid red;
+    border: 2px solid rgba(229,62,62,0.08);
 }
 #log-submit{
-    border-radius: 105px;
-    padding-left: 75px;
-    padding-right: 75px;
-    padding-top: 12px;
-    padding-bottom: 12px;
+    border-radius: 999px;
+    padding-left: 36px;
+    padding-right: 36px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    box-shadow: none;
 }
 #logo-login{
     margin-left: 10px;
-    width: 130px;
-    height: 50px;
+    width: 120px;
+    height: auto;
 }
 
 #dashboard-option{
     width: 100%;
     height: 50px;
-    background-color: rgb(235, 229, 221);
+    background-color: rgba(15,23,42,0.03);
 }
 #color{
-    background-color: rgb(235, 229, 221);
+    background-color: rgba(15,23,42,0.03);
+}
+
+/* Utility: primary action look when using id-based buttons */
+#log-submit.btn-responsive {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }

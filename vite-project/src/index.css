@@ -1,6 +1,16 @@
 /* Mobile-first responsive helpers and global adjustments */
 :root {
 	--base-font: 14px;
+	/* Friendly app color palette */
+	--color-bg: #f7fafc; /* very light gray */
+	--color-surface: #ffffff; /* cards, panels */
+	--color-primary: #2b6cb0; /* calm blue */
+	--color-primary-contrast: #ffffff;
+	--color-accent: #16a34a; /* pleasant green */
+	--color-muted: #6b7280; /* muted text */
+	--color-warm: #f6ad55; /* warm accent */
+	--color-danger: #e53e3e;
+	--elevation: 0 6px 18px rgba(16,24,40,0.06);
 }
 
 html, body, #root {
@@ -9,6 +19,8 @@ html, body, #root {
 	font-size: var(--base-font);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+	background-color: var(--color-bg);
+	color: #111827;
 }
 
 /* Improve container spacing on small screens */
@@ -23,6 +35,45 @@ html, body, #root {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+}
+
+/* Themed buttons and controls */
+.btn-primary {
+	background-color: var(--color-primary);
+	color: var(--color-primary-contrast);
+	border: none;
+}
+.btn-primary:hover, .btn-primary:focus {
+	background-color: color-mix(in srgb, var(--color-primary) 80%, black 20%);
+}
+
+.btn-success {
+	background-color: var(--color-accent);
+	color: #fff;
+	border: none;
+}
+.btn-outline-primary {
+	border-color: rgba(43,108,176,0.15);
+}
+
+/* Cards and surfaces */
+.card {
+	background: var(--color-surface);
+	border: 1px solid rgba(15,23,42,0.04);
+	box-shadow: var(--elevation);
+	border-radius: 10px;
+}
+
+/* Inputs */
+.form-control {
+	border-radius: 8px;
+	border: 1px solid rgba(15,23,42,0.08);
+	background: linear-gradient(180deg, #ffffff, #fbfdff);
+}
+.form-control:focus {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(43,108,176,0.08);
+	border-color: var(--color-primary);
 }
 
 /* On narrow viewports make responsive buttons full-width */
@@ -131,6 +182,31 @@ html, body, #root {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+/* Friendly headings */
+h1, h2, h3, h4 {
+	color: #0f172a;
+	font-weight: 600;
+}
+
+/* Subtle muted text */
+.text-muted, .muted {
+	color: var(--color-muted) !important;
+}
+
+/* Make helper backgrounds consistent with theme helpers */
+.bg-success {
+	background-color: var(--color-accent) !important;
+	color: #fff !important;
+}
+.bg-success.text-light {
+	color: #fff !important;
+}
+
+/* Provide a gentle primary border utility */
+.border-primary-soft {
+	border: 1px solid rgba(43,108,176,0.08);
 }
 
 /* Improve form controls spacing on small screens */

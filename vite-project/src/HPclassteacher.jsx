@@ -116,12 +116,12 @@ export default function HPclassteacher() {
                     <div className="col-sm-4 ">
                     <button className='border border-light  btn btn-light p-1 bg bg-light '><b>Welcome  {user?.username || "Guest"} <br /> Class Teacher ID : {user?.email || "Guest"}</b></button>
                     </div>
-                    <div className="col-sm-4">
-                        <button className='border border-light  btn btn-secondary' onClick={(event)=>actionperform(event)}><b>PROFILE </b></button>
-                    </div>
-                    <div className="col-sm-4">
-                        <button className='border border-light  btn btn-secondary' onClick={logout}><b>LOGOUT &#10238;</b></button>
-                    </div>
+          <div className="col-sm-4 d-none d-sm-block">
+            <button className='border border-light  btn btn-secondary' onClick={(event)=>actionperform(event)}><b>PROFILE </b></button>
+          </div>
+          <div className="col-sm-4 d-none d-sm-block">
+            <button className='border border-light  btn btn-secondary' onClick={logout}><b>LOGOUT &#10238;</b></button>
+          </div>
                 </div>
             </div>
             <div className="col-sm-2">

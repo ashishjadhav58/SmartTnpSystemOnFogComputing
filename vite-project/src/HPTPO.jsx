@@ -116,10 +116,10 @@ export default function HPTPO() {
                     <button className='border border-light  btn btn-light p-1 bg bg-light '><b>Welcome  {user?.username || "Guest"} <br /> TPO ID : {user?.email || "Guest"}</b></button>
                     </div>
           <div className="col-sm-3 d-none d-sm-block">
-            <button className='border border-light  btn btn-secondary' onClick={(event)=>actionperform(event)}><b>PROFILE </b></button>
+            <button className='border border-light  btn btn-secondary d-none d-sm-inline-block' onClick={(event)=>actionperform(event)}><b>PROFILE </b></button>
           </div>
           <div className="col-sm-3 d-none d-sm-block">
-            <button className='border border-light  btn btn-secondary' onClick={logout}><b>LOGOUT &#10238;</b></button>
+            <button className='border border-light  btn btn-secondary d-none d-sm-inline-block' onClick={logout}><b>LOGOUT &#10238;</b></button>
           </div>
                 </div>
             </div>

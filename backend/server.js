@@ -1,13 +1,14 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const fogapi = "https://97ccc07694d2.ngrok-free.app";
+const fogapi = "https://6e4cc7d9fec1.ngrok-free.app";
 require("dotenv").config();
 const cron = require("node-cron");
 const userdata = require("./Models/userdata.js");
 const message = require("./Models/message.js");
 const Drive = require("./Models/drivedetail.js")
 const Resource =require("./Models/Resouce.js")
+const EmailUrl = require("./Models/EmailUrl.js")
 const TpoEvent = require("./Models/TpoEvent.js")
 const Attendence = require("./Models/Attendence.js")
 const os = require("os")
@@ -39,16 +40,6 @@ app.use(cors({
 app.use(express.json()); 
 
 // POST: User Registration
-function handleJob(duration = 10000) {
-    activeJobs++;
-    console.log("Job started. Active jobs:", activeJobs);
-
-    setTimeout(() => {
-        activeJobs--;
-        console.log("Job ended. Active jobs:", activeJobs);
-    }, duration);
-}
-
 function handleJob(duration = 10000) {
     activeJobs++;
     console.log("Job started. Active jobs:", activeJobs);
@@ -471,22 +462,19 @@ app.post('/fogsynctable3', async (req, res) => {
 app.post('/fogsynctable4', async (req, res) => {
    try {
          console.log("Broadcast require arrived to Messagesycn");
-         const { id,
-                                sender,
-                                receiver,
-                                msg,
-                                } = req.body;
-        const newMessage = new Message({
-           id,
-                                sender,
-                                receiver,
-                                msg,
-                                read: read ?? false,
-                                isSync:true
-        })
-       console.log("Successfully received and store broadcast data");
-       await newMessage.save();
-      res.status(201).json(newMessage);
+      const { id, sender, receiver, msg, read } = req.body;
+      // `message` model is required as lowercase earlier; use it here
+      const newMessage = new message({
+        id,
+        sender,
+        receiver,
+        msg,
+        read: read ?? false,
+        isSync: true
+      });
+     console.log("Successfully received and stored broadcast message");
+     const savedMsg = await newMessage.save();
+    res.status(201).json(savedMsg);
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
@@ -496,32 +484,55 @@ app.post('/fogsynctable5', async (req, res) => {
    try {
         await handleJob();
          console.log("Broadcast require arrived to Attendancesycn");
-         const{
-           id,
-                                userEmail,
-                                eventId,
-                                eventName,
-                                views,
-                                feedback,
-                                suggestion
-         } = req.body;
+         const { id, userEmail, eventId, eventName, views, feedback, suggestion, markedAt } = req.body;
         const newattend = new Attendence({
            id,
-                                userEmail,
-                                eventId,
-                                eventName,
-                                views,
-                                feedback,
-                                suggestion,
-                                markedAt: new Date(markedAt),
-                                isSync:true
-        })
-       console.log("Successfully received and store broadcast data");
-       await newattend.save();
-      res.status(201).json(newattend);
+           userEmail,
+           eventId,
+           eventName,
+           views,
+           feedback,
+           suggestion,
+           markedAt: markedAt ? new Date(markedAt) : new Date(),
+           isSync: true
+        });
+       console.log("Successfully received and stored broadcast attendance");
+       const savedAttend = await newattend.save();
+      res.status(201).json(savedAttend);
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
+});
+
+// receiver for EmailUrl sync (syncTable = 6)
+app.post('/fogsynctable6', async (req, res) => {
+  try {
+    handleJob();
+    console.log('Broadcast request arrived to EmailUrl sync');
+    const { id, email, url, createdAt, updatedAt } = req.body;
+    
+    // Check if email already exists (unique identifier)
+    const existingEmail = await EmailUrl.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({ error: 'EmailUrl with this email already exists' });
+    }
+    
+    const newEmail = new EmailUrl({
+      id,
+      email,
+      url,
+      // if createdAt/updatedAt provided, Mongoose will accept them; timestamps are enabled
+      createdAt,
+      updatedAt,
+      isSync: true
+    });
+    const saved = await newEmail.save();
+    console.log('Successfully received and stored EmailUrl broadcast');
+    res.status(201).json(saved);
+  } catch (err) {
+    console.error('Error in /fogsynctable6:', err.message);
+    res.status(400).json({ error: err.message });
+  }
 });
   
   app.post('/api/tpoevents', async (req, res) => {
@@ -619,6 +630,84 @@ app.post('/NewUser', async (req, res) => {
     });
   }
 });
+
+// --- New user endpoints: list, get, create, replace, and push-update ---
+// GET: list all users
+app.get('/api/users', async (req, res) => {
+  try {
+    handleJob();
+    const users = await userdata.find();
+    res.status(200).json(users);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// GET: single user by id
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    handleJob();
+    const user = await userdata.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    console.error('Error fetching user:', err);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
+// POST: create user (alternative to /NewUser)
+app.post('/api/users', async (req, res) => {
+  try {
+    handleJob();
+    const newUser = new userdata(req.body);
+    await newUser.save();
+    res.status(201).json(newUser);
+  } catch (err) {
+    console.error('Error creating user:', err);
+    res.status(400).json({ error: 'Failed to create user', details: err.message });
+  }
+});
+
+// PUT: replace entire user document (use with full document body)
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    handleJob();
+    // findOneAndReplace will replace the document; it requires the full doc
+    const replaced = await userdata.findOneAndReplace(
+      { _id: req.params.id },
+      req.body,
+      { new: true }
+    );
+    if (!replaced) return res.status(404).json({ error: 'User not found to replace' });
+    res.json(replaced);
+  } catch (err) {
+    console.error('Error replacing user:', err);
+    res.status(400).json({ error: 'Failed to replace user', details: err.message });
+  }
+});
+
+// PATCH: push a value into an array field of the user document
+// Request body: { field: "arrayFieldName", value: <value> }
+app.patch('/api/users/:id/push', async (req, res) => {
+  try {
+    handleJob();
+    const { field, value } = req.body;
+    if (!field) return res.status(400).json({ error: 'Field name is required' });
+
+    // Build dynamic $push update
+    const update = { $push: {} };
+    update.$push[field] = value;
+
+    const updated = await userdata.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!updated) return res.status(404).json({ error: 'User not found to push update' });
+    res.json(updated);
+  } catch (err) {
+    console.error('Error pushing to user array field:', err);
+    res.status(400).json({ error: 'Failed to push update', details: err.message });
+  }
+});
   app.post('/api/classteacher/getdata/students/:email', async (req, res) => {
          handleJob();
     console.log("ali");
@@ -647,12 +736,75 @@ app.post('/NewUser', async (req, res) => {
   app.post('/api/attendance/all', async (req, res) => {
          handleJob();
     try {
-      const records = await Attendance.find().sort({ markedAt: -1 });
+      const records = await Attendence.find().sort({ markedAt: -1 });
       res.json(records);
     } catch (err) {
       res.status(500).json({ error: 'Server error while fetching attendance' });
     }
   });
+
+// ---------- EmailUrl endpoints ----------
+// POST: list all email-url mappings (uses POST instead of GET)
+app.post('/api/emailurls/list', async (req, res) => {
+  try {
+    handleJob();
+    const list = await EmailUrl.find();
+    res.status(200).json(list);
+  } catch (err) {
+    console.error('Error fetching EmailUrl list:', err);
+    res.status(500).json({ error: 'Failed to fetch email-url list' });
+  }
+});
+
+// POST: get single email-url by email (email provided in body: { email: '<email>' })
+app.post('/api/emailurls/get', async (req, res) => {
+  try {
+    handleJob();
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email is required in request body' });
+    const doc = await EmailUrl.findOne({ email });
+    if (!doc) return res.status(404).json({ error: 'Not found' });
+    res.json(doc);
+  } catch (err) {
+    console.error('Error fetching EmailUrl:', err);
+    res.status(500).json({ error: 'Failed to fetch email-url' });
+  }
+});
+
+// POST: create new email-url mapping
+app.post('/api/emailurls', async (req, res) => {
+  try {
+    handleJob();
+    const { email, url } = req.body;
+    if (!email || !url) return res.status(400).json({ error: 'email and url are required' });
+    
+    // Check if email already exists
+    const existingEmail = await EmailUrl.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+    
+    const newDoc = new EmailUrl(req.body);
+    const saved = await newDoc.save();
+    res.status(201).json(saved);
+  } catch (err) {
+    console.error('Error creating EmailUrl:', err);
+    res.status(400).json({ error: 'Failed to create email-url', details: err.message });
+  }
+});
+
+// PUT: replace entire email-url document (use with full document body)
+app.put('/api/emailurls/:id', async (req, res) => {
+  try {
+    handleJob();
+    const replaced = await EmailUrl.findOneAndReplace({ _id: req.params.id }, req.body, { new: true });
+    if (!replaced) return res.status(404).json({ error: 'Not found to replace' });
+    res.json(replaced);
+  } catch (err) {
+    console.error('Error replacing EmailUrl:', err);
+    res.status(400).json({ error: 'Failed to replace email-url', details: err.message });
+  }
+});
 
   //corn sync logic for 1 minute
 
@@ -754,7 +906,7 @@ app.post('/NewUser', async (req, res) => {
 //   }
 // });
 
-cron.schedule("*/5 * * * *", async () => {
+cron.schedule("*/1 * * * *", async () => {
   try {
     console.log();
     console.log("⏳ Cron sync started...");
@@ -850,6 +1002,24 @@ cron.schedule("*/5 * * * *", async () => {
       }
       console.log("new Message data found and succesfully sync ...");
     }
+
+    // 6️⃣ EmailUrls
+    const unsyncedEmailUrls = await EmailUrl.find({ isSync: false });
+    if (unsyncedEmailUrls.length === 0) {
+      console.log("No new EmailUrl data found while sync...");
+    } else {
+      for (const e of unsyncedEmailUrls) {
+        const payload = {
+          ...e.toObject(),
+          sourcefog: fogapi,
+          syncTable: "6",
+        };
+        await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata", payload);
+        e.isSync = true;
+        await e.save();
+      }
+      console.log("new EmailUrl data found and succesfully sync ...");
+    }
     console.log("✅ Sync completed this cycle");
     console.log();
 
@@ -859,6 +1029,6 @@ cron.schedule("*/5 * * * *", async () => {
 });
 
 
-app.listen(5000, '0.0.0.0', () => {
-  console.log("Server running on port 5000");
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Server running on port ${port}`);
 });

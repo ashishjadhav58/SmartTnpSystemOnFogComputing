@@ -8,6 +8,7 @@ import StTNPResouces from './StTNPResouces'
 import StSelfattendence from './StSelfattendence'
 import StINTERVIEWINFORMATIONGROUPS from './StINTERVIEWINFORMATIONGROUPS'
 import ProfileEdit from './ProfileEdit'
+import ResumePage from './ResumePage'
 export default function HPstudent() {
   const [user,setuser]=useState(null)
   const [islog,setislog]=useState(!!localStorage.getItem("user"))
@@ -47,6 +48,9 @@ export default function HPstudent() {
           break;
       case "PROFILE":
           setchoice(7)
+          break;
+      case "Resume":
+          setchoice(8)
           break;
     }
     
@@ -90,11 +94,12 @@ export default function HPstudent() {
             <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >T & P Event </button>
             <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >T & P Resouces</button>
             <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >self attendence</button>
-            <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start mb-5 pb-5' >Message</button>
+            <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >Message</button>
+            <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start mb-5 pb-5' >Resume</button>
             </div>
             <div className="col-sm-9">
                 {
-                  choice === 2 || choice === 1 ? <Stplacementdrive/> : choice === 3 ? <StTNPEvent></StTNPEvent> : choice === 4 ? <StTNPResouces></StTNPResouces> : choice === 5 ? <StSelfattendence></StSelfattendence> : choice ===6 ? <StINTERVIEWINFORMATIONGROUPS></StINTERVIEWINFORMATIONGROUPS> :choice === 7 ? <ProfileEdit></ProfileEdit> : ""
+                  choice === 2 || choice === 1 ? <Stplacementdrive/> : choice === 3 ? <StTNPEvent></StTNPEvent> : choice === 4 ? <StTNPResouces></StTNPResouces> : choice === 5 ? <StSelfattendence></StSelfattendence> : choice ===6 ? <StINTERVIEWINFORMATIONGROUPS></StINTERVIEWINFORMATIONGROUPS> :choice === 7 ? <ProfileEdit></ProfileEdit> : choice === 8 ? <ResumePage></ResumePage> : ""
                 }
             </div>
         </div>

@@ -40,8 +40,24 @@ export default function HPTPO() {
     } catch (e) {}
   }
   const [choice,setchoice] = useState(1)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen)
+  }
+  
   function actionperform(e){
-    switch(e.target.innerText){
+    // Get text content and remove emojis/extra whitespace
+    const text = e.target.innerText || e.target.textContent || '';
+    const cleanText = text.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+    
+    // Also check for Profile button with emoji
+    if (text.includes('Profile') || cleanText.includes('Profile') || text.includes('PROFILE')) {
+      setchoice(7);
+      return;
+    }
+    
+    switch(cleanText){
       case "Dashboard":
         setchoice(1)
         break;
@@ -51,6 +67,7 @@ export default function HPTPO() {
       case "T & P Event":
           setchoice(3)
           break;
+      case "T & P Resources":
       case "T & P Resouces":
           setchoice(4)
           break;
@@ -60,83 +77,287 @@ export default function HPTPO() {
       case "Upcoming Drives":
           setchoice(6)
           break;
-      case "PROFILE":
-          setchoice(7)
-          break;
+      default:
+        // Fallback: check if text contains keywords
+        if (cleanText.includes("Data Management") || text.includes("Data Management")) {
+          setchoice(2);
+        } else if (cleanText.includes("T & P Event") || text.includes("T & P Event")) {
+          setchoice(3);
+        } else if (cleanText.includes("T & P Resource") || text.includes("T & P Resource")) {
+          setchoice(4);
+        } else if (cleanText.includes("Messages") || text.includes("Messages")) {
+          setchoice(5);
+        } else if (cleanText.includes("Upcoming Drives") || text.includes("Upcoming Drives")) {
+          setchoice(6);
+        }
+        break;
     }
-    
   }
   return (
     <div>
       { islog === false ? <Navigate to="/" replace={true} /> : null }
 
-
-      <div className="container-fluid bg bg-light">
-        <div className="row border border-secondary">
-            <div className="col-sm-3  pt-4 text-center">
-                <img id="logo-login" src="logo.png" alt="" />
-            </div>
-            <div className="col-sm-4 mt-4">
-    <h3 className='text text-danger text-center'>Traning and Placement Office</h3>
-            </div>
-            <div className="col-sm-5 p-4 mt-1 text-center">
-                {/* Mobile navbar: visible only on xs screens */}
-                <div className="row d-block d-sm-none">
-                  <div className="col-12 p-2 bg-white border-bottom">
-                    <div className="d-flex justify-content-between align-items-center">
-                      <img src="logo.png" alt="logo" style={{height:32}} />
-                      <button className="btn btn-outline-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNavTpo" aria-controls="mobileNavTpo">
-                        Menu
-                      </button>
+      <div className="container-fluid" style={{ padding: 0, minHeight: '100vh', background: 'var(--color-bg)' }}>
+        {/* Modern Header - Optimized for Mobile & Desktop */}
+        <div className="modern-header" style={{ marginBottom: '2rem' }}>
+          <div className="container-fluid">
+            <div className="row align-items-center">
+              {/* Logo and Title Section */}
+              <div className="col-12 col-md-6 mb-2 mb-md-0">
+                <div className="d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center gap-2 gap-md-3">
+                    <img 
+                      src="logo.png" 
+                      alt="Logo" 
+                      className="d-none d-sm-block"
+                      style={{ height: '50px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }} 
+                    />
+                    <img 
+                      src="logo.png" 
+                      alt="Logo" 
+                      className="d-block d-sm-none"
+                      style={{ height: '32px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }} 
+                    />
+                    <div>
+                      <h4 className="d-none d-sm-block" style={{ color: 'white', margin: 0, fontWeight: '600', fontSize: '1.25rem' }}>
+                        Training and Placement Office
+                      </h4>
+                      <h5 className="d-block d-sm-none" style={{ color: 'white', margin: 0, fontWeight: '600', fontSize: '0.95rem', lineHeight: '1.2' }}>
+                        TPO Portal
+                      </h5>
+                      <p style={{ color: 'rgba(255,255,255,0.9)', margin: 0, fontSize: '0.85rem' }} className="d-none d-sm-block">
+                        Welcome, {user?.username || "Guest"}
+                      </p>
+                      <p className="d-block d-sm-none" style={{ color: 'rgba(255,255,255,0.9)', margin: 0, fontSize: '0.7rem', lineHeight: '1.2' }}>
+                        {user?.username || "Guest"}
+                      </p>
                     </div>
                   </div>
+                  {/* Mobile Menu Button - Small, Top Right */}
+                  <button 
+                    className="btn btn-light d-block d-sm-none" 
+                    type="button" 
+                    data-bs-toggle="offcanvas" 
+                    data-bs-target="#mobileNavTpo" 
+                    aria-controls="mobileNavTpo"
+                    style={{ 
+                      borderRadius: '8px', 
+                      padding: '0.375rem 0.625rem',
+                      minWidth: 'auto',
+                      fontSize: '1rem',
+                      lineHeight: '1',
+                      height: '36px',
+                      width: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    ☰
+                  </button>
                 </div>
-
-                {/* Offcanvas nav for mobile */}
-                <div className="offcanvas offcanvas-start" tabIndex="-1" id="mobileNavTpo" aria-labelledby="mobileNavTpoLabel">
-                  <div className="offcanvas-header">
-                    <h5 className="offcanvas-title" id="mobileNavTpoLabel">Menu</h5>
-                    <button type="button" className="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-                  </div>
-                  <div className="offcanvas-body">
-                    <div className="d-grid gap-2">
-                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>Data Management</button>
-                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>T & P Event</button>
-                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>T & P Resouces</button>
-                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>Upcoming Drives</button>
-                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>Messages</button>
-                      <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start'>PROFILE</button>
-                      <button onClick={()=>{ logout(); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-danger text-start'>LOGOUT</button>
-                    </div>
-                  </div>
+              </div>
+              {/* Desktop Actions - Enhanced */}
+              <div className="col-12 col-md-6 d-none d-sm-flex">
+                <div className="d-flex justify-content-end align-items-center gap-3 w-100">
+                  <button 
+                    className='btn btn-light desktop-header-btn' 
+                    onClick={toggleSidebar}
+                    style={{ 
+                      borderRadius: '10px', 
+                      fontWeight: '600', 
+                      minWidth: '48px', 
+                      height: '48px',
+                      padding: '0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1.1rem',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      transition: 'all 0.3s ease'
+                    }}
+                    title={sidebarOpen ? "Hide Menu" : "Show Menu"}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                    }}
+                  >
+                    {sidebarOpen ? '◀' : '▶'}
+                  </button>
+                  <button 
+                    className='btn btn-light desktop-header-btn' 
+                    onClick={(event)=>{ setchoice(7); }}
+                    style={{ 
+                      borderRadius: '10px', 
+                      fontWeight: '600',
+                      padding: '0.625rem 1.25rem',
+                      height: '48px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                    }}
+                  >
+                    <span>👤</span>
+                    <span>Profile</span>
+                  </button>
+                  <button 
+                    className='btn btn-light desktop-header-btn' 
+                    onClick={logout}
+                    style={{ 
+                      borderRadius: '10px', 
+                      fontWeight: '600',
+                      padding: '0.625rem 1.25rem',
+                      height: '48px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      transition: 'all 0.3s ease',
+                      background: 'rgba(255, 255, 255, 0.95)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                      e.currentTarget.style.background = '#fff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.95)';
+                    }}
+                  >
+                    <span>Logout</span>
+                    <span>→</span>
+                  </button>
                 </div>
-
-                <div className="row">
-                    <div className="col-sm-6 border border-grey ">
-                    <button className='border border-light  btn btn-light p-1 bg bg-light '><b>Welcome  {user?.username || "Guest"} <br /> TPO ID : {user?.email || "Guest"}</b></button>
-                    </div>
-          <div className="col-sm-3 d-none d-sm-block">
-            <button className='border border-light  btn btn-secondary d-none d-sm-inline-block' onClick={(event)=>actionperform(event)}><b>PROFILE </b></button>
+              </div>
+            </div>
           </div>
-          <div className="col-sm-3 d-none d-sm-block">
-            <button className='border border-light  btn btn-secondary d-none d-sm-inline-block' onClick={logout}><b>LOGOUT &#10238;</b></button>
-          </div>
-                </div>
-            </div>
         </div>
-    <div className="row">
-      <div className="col-sm-2 border border-secondary  text-start d-none d-sm-block">
-      <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >Data Management</button>
-      <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >T & P Event </button>
-      <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start' >T & P Resouces</button>
-      <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start  ' >Upcoming Drives</button> 
-      <button id="dashboard-option" onClick={(event)=>actionperform(event)} className='btn btn-light mt-5 text-start mb-5 pb-5' >Messages</button>
-      </div>
-            <div className="col-sm-9">
+
+        {/* Offcanvas nav for mobile - Enhanced */}
+        <div className="offcanvas offcanvas-start" tabIndex="-1" id="mobileNavTpo" aria-labelledby="mobileNavTpoLabel" style={{ width: '280px' }}>
+          <div className="offcanvas-header" style={{ background: 'var(--gradient-primary)', color: 'white', padding: '1.25rem' }}>
+            <div className="d-flex align-items-center gap-2">
+              <img src="logo.png" alt="Logo" style={{ height: '32px' }} />
+              <h5 className="offcanvas-title mb-0" id="mobileNavTpoLabel" style={{ fontWeight: '600', fontSize: '1.1rem' }}>
+                Menu
+              </h5>
+            </div>
+            <button type="button" className="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+          </div>
+          <div className="offcanvas-body" style={{ padding: '1rem' }}>
+            {/* User Info Section */}
+            <div className="mb-3 p-3" style={{ 
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+              borderRadius: '12px',
+              border: '1px solid rgba(59, 130, 246, 0.2)'
+            }}>
+              <p style={{ margin: 0, fontSize: '0.875rem', color: '#64748b', fontWeight: '500' }}>Logged in as</p>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '1rem', color: '#0f172a', fontWeight: '600' }}>
+                {user?.username || "Guest"}
+              </p>
+              <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                {user?.email || ""}
+              </p>
+            </div>
+
+            <div className="d-grid gap-2">
+              <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>📊 Data Management</button>
+              <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>📅 T & P Event</button>
+              <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>📚 T & P Resources</button>
+              <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>🚀 Upcoming Drives</button>
+              <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>💬 Messages</button>
+              
+              <hr style={{ margin: '1rem 0', borderColor: 'rgba(15, 23, 42, 0.1)' }} />
+              
+              <button onClick={(event)=>{ setchoice(7); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem', fontWeight: '600' }}>👤 Profile</button>
+              <button onClick={()=>{ logout(); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-danger text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem', fontWeight: '600' }}>🚪 Logout</button>
+            </div>
+          </div>
+        </div>
+
+        <div className="container-fluid" style={{ padding: '0 1rem 2rem' }}>
+          <div className="row align-items-start" style={{ margin: 0 }}>
+            {/* Modern Sidebar - Toggleable */}
+            {sidebarOpen && (
+              <div 
+                className="col-sm-3 col-lg-2 modern-sidebar d-none d-sm-block sidebar-open"
+                style={{ 
+                  borderRadius: '16px',
+                  padding: '1.5rem 1rem',
+                  transition: 'all var(--transition-base)',
+                  alignSelf: 'flex-start'
+                }}
+              >
+                <div style={{ paddingTop: '1rem' }}>
+                <button 
+                  id="dashboard-option" 
+                  onClick={(event)=>actionperform(event)} 
+                  className='btn btn-light text-start' 
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  📊 Data Management
+                </button>
+                <button 
+                  id="dashboard-option" 
+                  onClick={(event)=>actionperform(event)} 
+                  className='btn btn-light text-start' 
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  📅 T & P Event
+                </button>
+                <button 
+                  id="dashboard-option" 
+                  onClick={(event)=>actionperform(event)} 
+                  className='btn btn-light text-start' 
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  📚 T & P Resources
+                </button>
+                <button 
+                  id="dashboard-option" 
+                  onClick={(event)=>actionperform(event)} 
+                  className='btn btn-light text-start' 
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  🚀 Upcoming Drives
+                </button>
+                <button 
+                  id="dashboard-option" 
+                  onClick={(event)=>actionperform(event)} 
+                  className='btn btn-light text-start' 
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  💬 Messages
+                </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Main Content Area */}
+            <div className={sidebarOpen ? 'col-sm-9 col-lg-10' : 'col-12'} style={{ transition: 'all var(--transition-base)', paddingLeft: sidebarOpen ? '1rem' : '0' }}>
+              <div className="card fade-in" style={{ minHeight: '500px', padding: '2rem' }}>
                 {
                   choice === 2 || choice === 1 ? <Datamanagement/> : choice === 3 ? <TpoEvent></TpoEvent> : choice === 4 ? <Tpresouce></Tpresouce> : choice === 5 ? <Message></Message> : choice ===6 ? <PlacementSet></PlacementSet> :choice === 7 ? <ProfileEdit></ProfileEdit> : ""
                 }
+              </div>
             </div>
+          </div>
         </div>
       </div>
     </div>

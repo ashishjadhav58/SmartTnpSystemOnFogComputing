@@ -1,26 +1,91 @@
-/* Mobile-first responsive helpers and global adjustments */
+/* Modern Design System - Mobile-first responsive helpers */
 :root {
 	--base-font: 14px;
-	/* Friendly app color palette */
-	--color-bg: #f7fafc; /* very light gray */
+	
+	/* Modern color palette */
+	--color-bg: #f8fafc; /* soft background */
 	--color-surface: #ffffff; /* cards, panels */
-	--color-primary: #2b6cb0; /* calm blue */
+	--color-primary: #3b82f6; /* vibrant blue */
+	--color-primary-dark: #2563eb;
+	--color-primary-light: #60a5fa;
 	--color-primary-contrast: #ffffff;
-	--color-accent: #16a34a; /* pleasant green */
-	--color-muted: #6b7280; /* muted text */
-	--color-warm: #f6ad55; /* warm accent */
-	--color-danger: #e53e3e;
-	--elevation: 0 6px 18px rgba(16,24,40,0.06);
+	--color-accent: #10b981; /* modern green */
+	--color-accent-dark: #059669;
+	--color-muted: #64748b; /* muted text */
+	--color-muted-light: #94a3b8;
+	--color-warm: #f59e0b; /* warm accent */
+	--color-danger: #ef4444;
+	--color-danger-dark: #dc2626;
+	
+	/* Gradients */
+	--gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	--gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+	--gradient-warm: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+	--gradient-bg: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+	
+	/* Shadows & Elevation */
+	--shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+	--shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+	--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+	--shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+	--elevation: var(--shadow-lg);
+	
+	/* Border radius */
+	--radius-sm: 6px;
+	--radius-md: 10px;
+	--radius-lg: 16px;
+	--radius-xl: 24px;
+	--radius-full: 9999px;
+	
+	/* Transitions */
+	--transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+	--transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+	--transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+	box-sizing: border-box;
 }
 
 html, body, #root {
 	height: 100%;
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+	margin: 0;
+	padding: 0;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
 	font-size: var(--base-font);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-	background-color: var(--color-bg);
-	color: #111827;
+	background: var(--color-bg);
+	color: #0f172a;
+	line-height: 1.6;
+}
+
+/* Smooth scrolling */
+html {
+	scroll-behavior: smooth;
+	-webkit-text-size-adjust: 100%;
+}
+
+/* Mobile performance optimizations */
+@media (max-width: 768px) {
+	* {
+		-webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+	}
+
+	/* Improve rendering performance */
+	.card,
+	.btn,
+	.modern-header {
+		will-change: transform;
+		transform: translateZ(0);
+	}
+
+	/* Smooth transitions */
+	.card,
+	.btn,
+	.form-control {
+		transition: all var(--transition-base);
+	}
 }
 
 /* Improve container spacing on small screens */
@@ -37,136 +102,377 @@ html, body, #root {
 	justify-content: center;
 }
 
-/* Themed buttons and controls */
-.btn-primary {
-	background-color: var(--color-primary);
-	color: var(--color-primary-contrast);
+/* Modern Themed Buttons */
+.btn {
+	font-weight: 500;
+	border-radius: var(--radius-md);
+	padding: 0.625rem 1.25rem;
+	transition: all var(--transition-base);
+	cursor: pointer;
 	border: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	text-decoration: none;
 }
+
+.btn-primary {
+	background: var(--gradient-primary);
+	color: var(--color-primary-contrast);
+	box-shadow: var(--shadow-md);
+}
+
 .btn-primary:hover, .btn-primary:focus {
-	background-color: color-mix(in srgb, var(--color-primary) 80%, black 20%);
+	transform: translateY(-2px);
+	box-shadow: var(--shadow-lg);
+	background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+}
+
+.btn-primary:active {
+	transform: translateY(0);
 }
 
 .btn-success {
-	background-color: var(--color-accent);
+	background: var(--gradient-success);
 	color: #fff;
-	border: none;
-}
-.btn-outline-primary {
-	border-color: rgba(43,108,176,0.15);
+	box-shadow: var(--shadow-md);
 }
 
-/* Cards and surfaces */
+.btn-success:hover, .btn-success:focus {
+	transform: translateY(-2px);
+	box-shadow: var(--shadow-lg);
+	background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.btn-secondary {
+	background-color: #64748b;
+	color: #fff;
+	box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:hover, .btn-secondary:focus {
+	background-color: #475569;
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-md);
+}
+
+.btn-light {
+	background-color: #fff;
+	color: #0f172a;
+	border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.btn-light:hover, .btn-light:focus {
+	background-color: #f1f5f9;
+	border-color: rgba(15, 23, 42, 0.2);
+	transform: translateY(-1px);
+}
+
+.btn-outline-primary {
+	border: 2px solid var(--color-primary);
+	color: var(--color-primary);
+	background: transparent;
+}
+
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+	background: var(--color-primary);
+	color: #fff;
+	transform: translateY(-2px);
+}
+
+.btn-danger {
+	background-color: var(--color-danger);
+	color: #fff;
+	box-shadow: var(--shadow-md);
+}
+
+.btn-danger:hover, .btn-danger:focus {
+	background-color: var(--color-danger-dark);
+	transform: translateY(-2px);
+	box-shadow: var(--shadow-lg);
+}
+
+/* Modern Cards and Surfaces */
 .card {
 	background: var(--color-surface);
-	border: 1px solid rgba(15,23,42,0.04);
-	box-shadow: var(--elevation);
-	border-radius: 10px;
+	border: 1px solid rgba(15, 23, 42, 0.08);
+	box-shadow: var(--shadow-md);
+	border-radius: var(--radius-lg);
+	padding: 1.5rem;
+	transition: all var(--transition-base);
 }
 
-/* Inputs */
-.form-control {
-	border-radius: 8px;
-	border: 1px solid rgba(15,23,42,0.08);
-	background: linear-gradient(180deg, #ffffff, #fbfdff);
+.card:hover {
+	box-shadow: var(--shadow-xl);
+	transform: translateY(-2px);
 }
+
+/* Glassmorphism effect for modern look */
+.glass-card {
+	background: rgba(255, 255, 255, 0.9);
+	backdrop-filter: blur(10px);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	box-shadow: var(--shadow-xl);
+}
+
+/* Modern Form Inputs */
+.form-control {
+	border-radius: var(--radius-md);
+	border: 2px solid rgba(15, 23, 42, 0.1);
+	background: #fff;
+	padding: 0.75rem 1rem;
+	font-size: 1rem;
+	transition: all var(--transition-base);
+	width: 100%;
+}
+
 .form-control:focus {
 	outline: none;
-	box-shadow: 0 0 0 3px rgba(43,108,176,0.08);
+	box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
 	border-color: var(--color-primary);
+	transform: translateY(-1px);
 }
 
-/* On narrow viewports make responsive buttons full-width */
+/* Form Validation States */
+.form-control.is-invalid {
+	border-color: #dc2626;
+	background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc2626'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 3.6 .4.4.4-.4'/%3e%3cpath d='m6 6v2.5'/%3e%3c/svg%3e");
+	background-repeat: no-repeat;
+	background-position: right calc(0.375em + 0.1875rem) center;
+	background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+	padding-right: calc(1.5em + 0.75rem);
+}
+
+.form-control.is-invalid:focus {
+	border-color: #dc2626;
+	box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.1);
+}
+
+.invalid-feedback {
+	display: none;
+	width: 100%;
+	margin-top: 0.25rem;
+	font-size: 0.875rem;
+	color: #dc2626;
+}
+
+.form-control.is-invalid ~ .invalid-feedback {
+	display: block;
+}
+
+.form-control::placeholder {
+	color: var(--color-muted-light);
+}
+
+select.form-control {
+	cursor: pointer;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 0.75rem center;
+	background-size: 1rem;
+	padding-right: 2.5rem;
+	appearance: none;
+}
+
+/* ============================================
+   MOBILE-FIRST ENHANCED RESPONSIVE STYLES
+   ============================================ */
+
+/* Mobile Base Styles (up to 576px) */
 @media (max-width: 576px) {
-	.btn-responsive {
-		width: 100% !important;
+	:root { 
+		--base-font: 16px;
 	}
 
-	/* Make cards and modals more compact and readable */
+	/* Improved touch targets - minimum 44px for accessibility */
+	.btn, .btn-responsive {
+		min-height: 48px;
+		padding: 0.875rem 1.25rem;
+		font-size: 1rem;
+		font-weight: 500;
+		width: 100% !important;
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+	}
+
+	/* Enhanced form controls for mobile */
+	.form-control {
+		font-size: 1rem;
+		min-height: 48px;
+		padding: 0.875rem 1rem;
+		border-radius: var(--radius-md);
+		-webkit-appearance: none;
+		appearance: none;
+	}
+
+	/* Better card spacing and readability */
 	.card {
+		margin-bottom: 1rem;
+		padding: 1.25rem !important;
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-md);
+	}
+
+	.glass-card {
+		padding: 1.5rem 1.25rem !important;
+	}
+
+	/* Improved typography for mobile */
+	h1 {
+		font-size: 1.75rem !important;
+		line-height: 1.3;
 		margin-bottom: 0.75rem;
 	}
 
+	h2 {
+		font-size: 1.5rem !important;
+		line-height: 1.3;
+	}
+
+	h3 {
+		font-size: 1.25rem !important;
+	}
+
+	h4 {
+		font-size: 1.1rem !important;
+	}
+
+	/* Center logos and images */
+	#logo-login, img#logo-login {
+		display: block;
+		margin: 0 auto 1rem;
+		max-width: 120px;
+		height: auto;
+	}
+
+	/* Modern container adjustments */
+	.modern-container {
+		padding: 1rem !important;
+	}
+
+	/* Header improvements */
+	.modern-header {
+		padding: 1rem 1.25rem !important;
+		border-radius: 0 !important;
+	}
+
+	.modern-header h4 {
+		font-size: 1.1rem !important;
+		margin: 0;
+	}
+
+	.modern-header p {
+		font-size: 0.85rem !important;
+		margin: 0.25rem 0 0 0;
+	}
+
+	/* Sidebar adjustments */
+	.modern-sidebar {
+		width: 100% !important;
+		position: relative !important;
+		margin-bottom: 1rem;
+		border-right: none;
+		border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+		padding: 1rem !important;
+		min-height: auto;
+	}
+
+	/* Offcanvas improvements */
+	.offcanvas {
+		transition: transform var(--transition-slow) ease-out;
+	}
+
+	.offcanvas .btn {
+		text-align: left;
+		font-size: 1rem;
+		padding: 1rem 1.25rem;
+		min-height: 52px;
+		margin-bottom: 0.5rem;
+		border-radius: var(--radius-md);
+		width: 100%;
+		justify-content: flex-start;
+	}
+
+	.offcanvas-header {
+		padding: 1.25rem;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.offcanvas-body {
+		padding: 1rem;
+	}
+
+	/* Modal improvements */
 	.modal-dialog {
 		max-width: 95%;
 		margin: 1rem auto;
 	}
 
 	.modal-content {
-		border-radius: 8px;
+		border-radius: var(--radius-lg);
+		padding: 1.25rem;
 	}
 
-	/* Make sidebars stack above content (if present) */
-	.sidebar, .left-sidebar {
-		width: 100% !important;
-		position: relative !important;
-		margin-bottom: 0.75rem;
+	/* Container fluid adjustments */
+	.container-fluid {
+		padding-left: 1rem;
+		padding-right: 1rem;
+	}
+
+	/* Row and column adjustments */
+	.container-fluid > .row,
+	.container > .row {
+		margin-left: -0.5rem;
+		margin-right: -0.5rem;
+	}
+
+	.container-fluid > .row > [class*="col-"],
+	.container > .row > [class*="col-"] {
+		padding-left: 0.5rem;
+		padding-right: 0.5rem;
+	}
+
+	/* Better spacing for stacked elements */
+	.mb-3, .mb-4 {
+		margin-bottom: 1rem !important;
+	}
+
+	.mt-4, .mt-5 {
+		margin-top: 1rem !important;
+	}
+
+	/* Smooth scroll behavior */
+	* {
+		-webkit-overflow-scrolling: touch;
 	}
 }
 
-	/* Center main components and slightly enlarge on very small screens */
-	@media (max-width: 576px) {
-		:root { --base-font: 16px; }
-
-		/* Make rows center their children to create a stacked centered layout */
-		.container-fluid > .row,
-		.container > .row {
-			justify-content: center;
-		}
-
-		/* Force common column blocks to a centered max-width so components appear in the middle */
-		.container-fluid .col-sm-9,
-		.container-fluid .col-sm-8,
-		.container-fluid .col-sm-7,
-		.container-fluid .col-sm-6,
-		.container-fluid .col-sm-5,
-		.container-fluid .col-sm-4,
-		.container-fluid .col-sm-3,
-		.container .col-12,
-		.container .col {
-			max-width: 95% !important;
-			flex: 0 0 95% !important;
-			margin-left: auto !important;
-			margin-right: auto !important;
-		}
-
-		/* Slightly larger, more touch-friendly controls */
-		.card, .modal-content {
-			font-size: 1.05rem;
-			padding: 0.75rem;
-		}
-
-		.btn, .btn-responsive {
-			padding: 0.65rem 0.9rem;
-			font-size: 1rem;
-		}
-
-		/* Center logos and images in header areas */
-		#logo-login, img#logo-login {
-			display: block;
-			margin-left: auto;
-			margin-right: auto;
-			max-width: 140px;
-			height: auto;
-		}
-
-		/* Make form inputs and text more legible */
-		.form-control {
-			font-size: 1rem;
-		}
-
-		/* Ensure offcanvas body buttons are readable and centered */
-		.offcanvas .btn {
-			text-align: left;
-			font-size: 1rem;
-			padding: 0.65rem 0.8rem;
-		}
+/* Tablet adjustments (577px - 768px) */
+@media (min-width: 577px) and (max-width: 768px) {
+	:root { 
+		--base-font: 15px;
 	}
 
-/* Slightly larger base font for tablets/desktops */
-@media (min-width: 768px) {
+	.btn, .btn-responsive {
+		min-height: 44px;
+		padding: 0.75rem 1.5rem;
+	}
+
+	.card {
+		padding: 1.5rem !important;
+	}
+
+	.modern-container {
+		padding: 1.5rem !important;
+	}
+}
+
+/* Tablet and Desktop adjustments */
+@media (min-width: 769px) {
 	:root { --base-font: 15px; }
 }
+
 @media (min-width: 1200px) {
 	:root { --base-font: 16px; }
 }
@@ -184,10 +490,32 @@ html, body, #root {
 	text-overflow: ellipsis;
 }
 
-/* Friendly headings */
-h1, h2, h3, h4 {
+/* Modern Typography */
+h1, h2, h3, h4, h5, h6 {
 	color: #0f172a;
-	font-weight: 600;
+	font-weight: 700;
+	line-height: 1.2;
+	margin-bottom: 1rem;
+}
+
+h1 {
+	font-size: 2.5rem;
+	background: var(--gradient-primary);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+h2 {
+	font-size: 2rem;
+}
+
+h3 {
+	font-size: 1.5rem;
+}
+
+h4 {
+	font-size: 1.25rem;
 }
 
 /* Subtle muted text */
@@ -209,14 +537,203 @@ h1, h2, h3, h4 {
 	border: 1px solid rgba(43,108,176,0.08);
 }
 
-/* Improve form controls spacing on small screens */
-.form-control {
-	padding: .45rem .65rem;
+/* Additional utility classes */
+.text-gradient {
+	background: var(--gradient-primary);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+/* Smooth animations */
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.fade-in {
+	animation: fadeIn var(--transition-base) ease-out;
+}
+
+/* Loading spinner */
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.spinner {
+	border: 3px solid rgba(59, 130, 246, 0.1);
+	border-top-color: var(--color-primary);
+	border-radius: 50%;
+	width: 2rem;
+	height: 2rem;
+	animation: spin 0.8s linear infinite;
 }
 
 /* Ensure clickable areas have enough touch target */
 .clickable {
 	touch-action: manipulation;
+}
+
+/* ============================================
+   MOBILE NAVIGATION ENHANCEMENTS
+   ============================================ */
+
+/* Smooth offcanvas transitions */
+.offcanvas {
+	transition: transform var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
+	backdrop-filter: blur(10px);
+}
+
+.offcanvas.showing {
+	transition: transform var(--transition-slow) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Offcanvas backdrop */
+.offcanvas-backdrop {
+	background-color: rgba(0, 0, 0, 0.5);
+	backdrop-filter: blur(4px);
+	transition: opacity var(--transition-base);
+}
+
+/* Mobile menu button improvements */
+[data-bs-toggle="offcanvas"] {
+	min-height: 44px;
+	padding: 0.75rem 1.25rem;
+	font-size: 1rem;
+	font-weight: 500;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+}
+
+/* Mobile header card improvements */
+@media (max-width: 576px) {
+	.modern-header .card {
+		padding: 0.875rem !important;
+		border-radius: var(--radius-md);
+		margin-bottom: 0;
+	}
+
+	.modern-header .d-flex.justify-content-end {
+		flex-direction: column;
+		gap: 0.5rem;
+		width: 100%;
+	}
+
+	.modern-header .d-flex.justify-content-end .btn {
+		width: 100%;
+		margin: 0;
+	}
+}
+
+/* Smooth scroll for mobile */
+@media (max-width: 768px) {
+	html {
+		scroll-padding-top: 1rem;
+	}
+
+	body {
+		-webkit-overflow-scrolling: touch;
+		overflow-x: hidden;
+	}
+
+	/* Prevent horizontal scroll */
+	.container-fluid,
+	.container,
+	.row {
+		max-width: 100%;
+		overflow-x: hidden;
+	}
+}
+
+/* Mobile-specific animations */
+@media (max-width: 576px) {
+	@keyframes slideInFromLeft {
+		from {
+			transform: translateX(-100%);
+			opacity: 0;
+		}
+		to {
+			transform: translateX(0);
+			opacity: 1;
+		}
+	}
+
+	.offcanvas.show {
+		animation: slideInFromLeft var(--transition-slow) ease-out;
+	}
+
+	.fade-in {
+		animation: fadeIn var(--transition-base) ease-out;
+	}
+}
+
+/* Better mobile form experience */
+@media (max-width: 576px) {
+	/* Prevent zoom on input focus (iOS) */
+	input[type="text"],
+	input[type="email"],
+	input[type="password"],
+	input[type="number"],
+	select,
+	textarea {
+		font-size: 16px !important;
+	}
+
+	/* Improve select dropdown on mobile */
+	select.form-control {
+		background-size: 1.25rem;
+		padding-right: 3rem;
+	}
+}
+
+/* Mobile table improvements */
+@media (max-width: 768px) {
+	.table-responsive {
+		display: block;
+		width: 100%;
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.table-responsive table {
+		width: 100%;
+		min-width: 600px;
+	}
+}
+
+/* Mobile card grid improvements */
+@media (max-width: 576px) {
+	.row.g-3 > [class*="col-"] {
+		margin-bottom: 1rem;
+	}
+
+	.row.g-3 > [class*="col-"]:last-child {
+		margin-bottom: 0;
+	}
+}
+
+/* Touch feedback improvements */
+@media (max-width: 768px) {
+	.btn:active,
+	button:active,
+	[role="button"]:active {
+		transform: scale(0.98);
+		transition: transform 100ms ease;
+	}
+
+	.btn:focus,
+	button:focus {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
+	}
 }
 
 /* End of responsive helpers */

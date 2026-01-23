@@ -15,15 +15,12 @@ export default function App() {
   return (
     <div>
       <Routes>
-                <Route path="/" element={<Loginpage/>} />
-                <Route path="/signup" element={<Register />} />
-                <Route path="/student" element={<HPstudent />} />
-                <Route path="/student" element={<HPstudent />} />
-                <Route path="/message" element={<MessageInterface/>} />
-                <Route path="/tpo" element={<HPTPO />} />
-                <Route path="/classteacher" element={<HPclassteacher />} />
-                
-
+        <Route path="/" element={<Loginpage/>} />
+        <Route path="/signup" element={<Register />} />
+        <Route path="/student" element={<HPstudent />} />
+        <Route path="/message" element={<MessageInterface/>} />
+        <Route path="/tpo" element={<HPTPO />} />
+        <Route path="/classteacher" element={<HPclassteacher />} />
       </Routes>
     </div>
   )

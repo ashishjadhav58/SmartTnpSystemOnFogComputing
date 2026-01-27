@@ -1,1034 +1,124 @@
 const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const fogapi = "https://6e4cc7d9fec1.ngrok-free.app";
-require("dotenv").config();
-const cron = require("node-cron");
-const userdata = require("./Models/userdata.js");
-const message = require("./Models/message.js");
-const Drive = require("./Models/drivedetail.js")
-const Resource =require("./Models/Resouce.js")
-const EmailUrl = require("./Models/EmailUrl.js")
-const TpoEvent = require("./Models/TpoEvent.js")
-const Attendence = require("./Models/Attendence.js")
-const os = require("os")
-const osu = require("os-utils");
-const { json } = require("stream/consumers");
-const { default: axios } = require("axios");
+const connectDB = require("./config/database");
+const corsMiddleware = require("./middleware/corsConfig");
+const { PORT } = require("./config/constants");
+const startCronSync = require("./utils/cronSync");
 
+// Import all route files
+const statusRoutes = require("./routes/statusRoutes");
+const userRoutes = require("./routes/userRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const driveRoutes = require("./routes/driveRoutes");
+const resourceRoutes = require("./routes/resourceRoutes");
+const tpoRoutes = require("./routes/tpoRoutes");
+const emailUrlRoutes = require("./routes/emailUrlRoutes");
+const aiRoutes = require("./routes/aiRoutes"); // AI services routes (resume scoring, placement prediction, skill matching)
+const aiProxyRoutes = require("./routes/aiProxyRoutes"); // Unified AI proxy (all POST requests)
+const recruiterRoutes = require("./routes/recruiterRoutes");
+const resumeRoutes = require("./routes/resumeRoutes");
+const driveAiRoutes = require("./routes/driveAiRoutes"); // Drive AI check with ML/DL placement prediction service
+const syncRoutes = require("./routes/syncRoutes");
+
+// Initialize Express app
 const app = express();
-const port = 5000;
-let activeJobs = 0;
 
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log("✅ Database is connected"))
-  .catch((error) => console.log("❌ Error occurred:", error));
+// Connect to database
+connectDB();
 
-app.use(cors({
-    origin: "*", 
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Middleware
+app.use(corsMiddleware);
+app.use(express.json());
 
-// Middlewares
-app.use(cors({
-    origin: ['http://localhost:5173', 'https://evolve-traning-and-placement-system.vercel.app'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Routes
+app.use("/", statusRoutes);
+app.use("/api", userRoutes);
 
-app.use(express.json()); 
+// AWS Lambda calls /NewUser directly (without /api prefix) - add route for compatibility
+// Reuse the exported handler from userRoutes
+console.log("🔍 Checking userRoutes exports:", {
+  hasRouter: !!userRoutes,
+  hasHandleNewUser: !!userRoutes.handleNewUser,
+  routerType: typeof userRoutes,
+  exports: Object.keys(userRoutes)
+});
 
-// POST: User Registration
-function handleJob(duration = 10000) {
-    activeJobs++;
-    console.log("Job started. Active jobs:", activeJobs);
+// Register /NewUser route (AWS Lambda calls this directly without /api prefix)
+// Try multiple methods to get the handler
+let newUserHandler = null;
 
-    setTimeout(() => {
-        activeJobs--;
-        console.log("Job ended. Active jobs:", activeJobs);
-    }, duration);
+if (userRoutes.handleNewUser) {
+  newUserHandler = userRoutes.handleNewUser;
+  console.log("✅ Found handleNewUser export");
+} else {
+  console.warn("⚠️ handleNewUser not found in exports, trying router stack...");
+  // Fallback: Try to extract handler from router stack
+  try {
+    const newUserRoute = userRoutes.stack?.find(layer => 
+      layer.route && layer.route.path === '/NewUser' && layer.route.methods.post
+    );
+    if (newUserRoute) {
+      newUserHandler = newUserRoute.route.stack[0].handle;
+      console.log("✅ Found /NewUser handler in router stack");
+    } else {
+      console.error("❌ Could not find /NewUser route in router stack");
+    }
+  } catch (err) {
+    console.error("❌ Error searching router stack:", err);
+  }
 }
 
-
-app.get("/status", (req, res) => {
-    try {
-        // os-utils uses callback, not async/await
-        osu.cpuUsage(function (cpuPercent) {
-            const totalMem = os.totalmem();
-            const freeMem = os.freemem();
-            const usedMemPercent = Math.round(((totalMem - freeMem) / totalMem) * 100);
-
-            res.status(200).json({
-                cpu: Math.round(cpuPercent * 100), // cpuUsage gives fraction (0–1)
-                memory: usedMemPercent,
-                activeJobs,
-                status: "up"
-            });
-        });
-    } catch (err) {
-        console.error("❌ /status error:", err.message);
-        res.status(500).json({ status: "down", error: err.message });
-    }
-});
-
-
-app.get('/do-task', (req, res) => {
-    handleJob(); // Just call the function
-    res.json({ message: "Task started!" });
-});
-
-// app.post("/api/register", async (req, res) => {
-//     try {
-//         const { username, password, email, classemail, tpoemail, accesstype } = req.body;
-
-        
-//         const exist = await userdata.findOne({ email });
-//         if (exist) {
-//             return res.status(400).json({ status: "404", message: "User already exists" });
-//         }      
-
-//         const newuser = new userdata({
-//             username,
-//             password,
-//             email,
-//             classemail,
-//             tpoemail,
-//             accesstype
-//         });
-
-//         await newuser.save();
-//         res.status(201).json({ status: 200, message: "User registered successfully", userId: newuser._id });
-//     } catch (err) {
-//         console.error(err);
-//         res.status(500).json({ status: 500, message: "Internal Server Error" });
-//     }
-// });
-
-// app.get("/api/login", async (req, res) => {
-//     try {
-//         const response = await userdata.find();
-//         if (response.length === 0) {
-//             return res.status(404).json({ status: "404", message: "No users found" });
-//         }
-//         res.status(200).json(response);
-//     } catch (err) {
-//         console.log("Error occurred in /api/login route:", err);
-//         res.status(500).json({ status: "500", message: "Internal Server Error" });
-//     }
-// });
-
-app.patch("/api/accounts/:_id", async (req,res)=>{
-   try{
-    const userId = req.params._id;
-    const data = req.body;
-    const user = await userdata.findByIdAndUpdate(userId,data,{new:"true"});
-    handleJob();
-    if(!user){
-        res.json({status:"404",message:"Not found to update"})
-    }
-   res.json({status:"200",message:"Updated successfulyy"})
-   }
-   catch(error){
-        console.log("error occured");
-        res.json({status:"500"})
-   }
-})
-
-app.post("/api/tpo/getdataa/:email",async (req,res)=>{
-    try{
-        const mail = req.params.email;
-        const response = await userdata.find({tpoemail:mail , accesstype:"Class Teacher"})    
-        res.status(200).json(response)
-         handleJob();
-    }
-    catch(Error){
-        res.json({status:"404"})
-    }
-})
-
-app.post("/api/tpo/getdata/studentt/:email",async (req,res)=>{
-    try{
-      
-         handleJob();
-        const mail = req.params.email;
-        const response = await userdata.find({classemail:mail , accesstype:"Student"})  
-        res.json(response)
-    }
-    catch(Error){
-        res.json({status:"404"})
-    }
-})
-
-
-app.post("/api/tpo/getdata/student/profilee/:email",async (req,res)=>{
-    try{
-         handleJob();
-        const mail = req.params.email;
-        const response = await userdata.find({email:mail , accesstype:"Student"})  
-        res.json(response)
-    }
-    catch(Error){
-        res.json({status:"404"})
-    }
-})
-
-app.patch("/api/message/:_id",async (req,res)=>{
-    console.log("ali");
-    
-    try{
-         handleJob();
-        const userId = req.params._id;
-        const data = req.body;
-        const user = await message.findByIdAndUpdate(userId,data,{new:"true"});
-        if(!user){
-            res.json({status:"404",message:"Not found to update"})
-        }
-       res.json({status:"200",message:"Updated successfulyy"})
-       }
-       catch(error){
-            console.log("error occured");
-            res.json({status:"500"})
-       }
-})
-
-app.post("/api/message",async (req,res)=>{
-    try{     
-         handleJob();   
-        const {sender,receiver,msg} = req.body;
-    const newmsg = new message({
-        sender,
-        receiver,
-        msg,
-        read : false,
-    })
-    await newmsg.save()
-    res.json({status:"200",id:newmsg._id})
-    }
-    catch(err){
-        res.json({status:"500"})
-    }
-})
-
-app.post("/api/message/gett/:email", async (req, res) => {
-    try {
-         handleJob();
-        const mail = req.params.email;
-        console.log("Fetching messages for:", mail);
-        const response = await message.find({ receiver: mail, read: false });
-        console.log("Messages found:", response);
-
-        // Return an empty array if no messages exist
-        if (response.length === 0) {
-            return res.status(200).json([]); 
-        }
-
-        res.status(200).json(response);
-    } catch (err) {
-        console.error("Error fetching messages:", err);
-        res.status(500).json({ status: "500", message: "Internal Server Error" });
-    }
-});
-
-app.get("/api/message/get/perticular/:useremail/:nextemail",async (req,res)=>{
-    try {
-         handleJob();
-        const { useremail, nextemail } = req.params;
-        const response = await message.find({
-        $or: [
-            { sender: useremail, receiver: nextemail },
-            { sender: nextemail, receiver: useremail }
-        ]
-        });
-        console.log(response);
-        res.json(response)
-    }
-    catch(er){
-        res.json({status:"500"});
-    }
-})
-
-app.post("/api/drivedataa", async (req, res) => {
-    try {
-         handleJob();
-        const data = await Drive.find();  // Use await, not async
-        res.json(data);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ status: "500", error: "Internal Server Error" });
-    }
-});
-
-app.put("/api/drivedata/:id", async (req, res) => {
-    try {
-         handleJob();
-      const updatedDrive = await Drive.findByIdAndUpdate(
-        req.params.id,
-        { $set: req.body },
-        { new: true } // return updated doc
-      );
-      if (!updatedDrive) {
-        return res.status(404).json({ message: "Drive not found" });
-      }
-      res.json(updatedDrive);
-    } catch (err) {
-      console.error("Error updating drive:", err);
-      res.status(500).json({ message: "Server Error" });
-    }
-  });
-
-  app.post('/api/drivedata', async (req, res) => {
-    try {
-         handleJob();
-      const {
-        companyName,
-        jobRole,
-        salaryPackage,
-        driveDate,
-        eligibilityCriteria,
-        description,
-        registrationLink,
-        status
-      } = req.body;
-  
-      // Create a new drive object manually
-      const newDrive = new Drive({
-        companyName,
-        jobRole,
-        salaryPackage,
-        driveDate,
-        eligibilityCriteria,
-        description,
-        registrationLink,
-        status
-      });
-  
-      // Save to database
-      await newDrive.save();
-      res.status(201).json({ message: 'Drive added successfully', drive: newDrive });
-  
-    } catch (err) {
-      console.error("Error in POST /drivedata:", err);
-      res.status(400).json({
-        error: "Failed to add drive. Check data format.",
-        details: err.message
-      });
-    }
-  });
-
- app.post('/api/resoucess', async (req, res) => {
-  console.log("ali req")
-    try {
-         handleJob();
-      const resources = await Resource.find();
-      console.log(resources)
-      res.json(resources);
-    } catch (err) {
-      res.status(500).json({ error: "Server error" });
-    }
-  });
-  
-  app.post('/api/resouces', async (req, res) => {
-    try {
-         handleJob();
-      const newRes = new Resource(req.body);
-      const saved = await newRes.save();
-      res.json(saved);
-    } catch (err) {
-      res.status(400).json({ error: "Invalid input", details: err.message });
-    }
-  });
-
-app.put('/api/resouces/:id', async (req, res) => {
-    try {
-         handleJob();
-      const updated = await Resource.findByIdAndUpdate(req.params.id, req.body, { new: true });
-      res.json(updated);
-    } catch (err) {
-      res.status(400).json({ error: "Update failed", details: err.message });
-    }
-  });
-  
-app.post('/api/tpoeventss', async (req, res) => {
-  try {
-    handleJob();
-    const events = await TpoEvent.find();
-    res.setHeader('Content-Type', 'application/json');  // explicitly set header
-    res.status(200).json(events);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/fogsynctable1', async (req, res) => {
-   try {
-         handleJob();
-         console.log("Broadcast request arrived to drivesycn");
-          const {
-            id,
-            createdAt,
-            updatedAt,
-        companyName,
-        jobRole,
-        salaryPackage,
-        driveDate,
-        eligibilityCriteria,
-        description,
-        registrationLink,
-        status
-      } = req.body;
-  
-      // Create a new drive object manually
-      const newDrive = new Drive({
-        updatedAt,
-        createdAt,
-        id,
-        companyName,
-        jobRole,
-        salaryPackage,
-        driveDate,
-        eligibilityCriteria,
-        description,
-        registrationLink,
-        status,
-        isSync : true
-      });
-      await newDrive.save();
-      console.log("Successfully received and store broadcast data");      
-      res.status(201).json(newDrive);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
-});
-
-app.post('/fogsynctable2', async (req, res) => {
-   try {
-      handleJob();
-       console.log("Broadcast require arrived to Eventsycn");
-       const {  id,
-                                lecturer,
-                                lectureName,
-                                eventDateTime,
-                                venue,
-                                description,
-                                status } = req.body;
-        const newevent = new TpoEvent({
-           id,
-                                lecturer,
-                                lectureName,
-                                eventDateTime,
-                                venue,
-                                description,
-                                status,
-                                isSync:true
-        })
-       console.log("Successfully received and store broadcast data");
-       await newevent.save();
-      res.status(201).json(newevent);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
-});
-
-app.post('/fogsynctable3', async (req, res) => {
-   try {
-         handleJob();
-        console.log("Broadcast require arrived to Resourcesycn");
-        const {  id,
-                                resourceName,
-                                description,
-                                category,
-                                driveLink,
-                                uploadedBy,
-                                uploadDate } = req.body;
-        const newResource = new Resource({
-                                id,
-                                resourceName,
-                                description,
-                                category,
-                                driveLink,
-                                uploadedBy,
-                                uploadDate,
-                                isSync:true
-        })
-       console.log("Successfully received and store broadcast data");
-       await newResource.save();
-      res.status(201).json(newResource);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
-});
-
-app.post('/fogsynctable4', async (req, res) => {
-   try {
-         console.log("Broadcast require arrived to Messagesycn");
-      const { id, sender, receiver, msg, read } = req.body;
-      // `message` model is required as lowercase earlier; use it here
-      const newMessage = new message({
-        id,
-        sender,
-        receiver,
-        msg,
-        read: read ?? false,
-        isSync: true
-      });
-     console.log("Successfully received and stored broadcast message");
-     const savedMsg = await newMessage.save();
-    res.status(201).json(savedMsg);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
-});
-
-app.post('/fogsynctable5', async (req, res) => {
-   try {
-        await handleJob();
-         console.log("Broadcast require arrived to Attendancesycn");
-         const { id, userEmail, eventId, eventName, views, feedback, suggestion, markedAt } = req.body;
-        const newattend = new Attendence({
-           id,
-           userEmail,
-           eventId,
-           eventName,
-           views,
-           feedback,
-           suggestion,
-           markedAt: markedAt ? new Date(markedAt) : new Date(),
-           isSync: true
-        });
-       console.log("Successfully received and stored broadcast attendance");
-       const savedAttend = await newattend.save();
-      res.status(201).json(savedAttend);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
-});
-
-// receiver for EmailUrl sync (syncTable = 6)
-app.post('/fogsynctable6', async (req, res) => {
-  try {
-    handleJob();
-    console.log('Broadcast request arrived to EmailUrl sync');
-    const { id, email, url, createdAt, updatedAt } = req.body;
-    
-    // Check if email already exists (unique identifier)
-    const existingEmail = await EmailUrl.findOne({ email });
-    if (existingEmail) {
-      return res.status(400).json({ error: 'EmailUrl with this email already exists' });
-    }
-    
-    const newEmail = new EmailUrl({
-      id,
-      email,
-      url,
-      // if createdAt/updatedAt provided, Mongoose will accept them; timestamps are enabled
-      createdAt,
-      updatedAt,
-      isSync: true
+if (newUserHandler) {
+  app.post("/NewUser", (req, res, next) => {
+    console.log("📥 [DIRECT /NewUser] Request received:", {
+      method: req.method,
+      path: req.path,
+      url: req.url,
+      hasBody: !!req.body,
+      bodyKeys: req.body ? Object.keys(req.body) : [],
+      contentType: req.headers['content-type'],
+      bodyPreview: req.body ? JSON.stringify(req.body).substring(0, 200) : 'no body'
     });
-    const saved = await newEmail.save();
-    console.log('Successfully received and stored EmailUrl broadcast');
-    res.status(201).json(saved);
-  } catch (err) {
-    console.error('Error in /fogsynctable6:', err.message);
-    res.status(400).json({ error: err.message });
-  }
-});
-  
-  app.post('/api/tpoevents', async (req, res) => {
-    try {
-         handleJob();
-      const newEvent = new TpoEvent(req.body);
-      const savedEvent = await newEvent.save();
-      res.status(201).json(savedEvent);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
+    return newUserHandler(req, res, next);
   });
-  
-  app.put('/api/tpoevents/:id', async (req, res) => {
-    try {
-         handleJob();
-      const updatedEvent = await TpoEvent.findByIdAndUpdate(req.params.id, req.body, { new: true });
-      res.json(updatedEvent);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
-    }
-  });
-  
-  app.delete('/:id', async (req, res) => {
-    try {
-         handleJob();
-      await TpoEvent.findByIdAndDelete(req.params.id);
-      res.json({ message: "Event deleted" });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-  
-  app.post("/api/attendance", async (req, res) => {
-         handleJob();
-    const { userEmail, eventId, eventName, views, feedback, suggestion, markedAt } = req.body;
-  
-    try {
-      const attendance1 = new Attendence({
-        userEmail,
-        eventId,
-        eventName,
-        views,
-        feedback,
-        suggestion,
-        markedAt
-      });
-  
-      await attendance1.save();
-      res.status(201).json({ message: "Attendance marked successfully" });
-    } catch (error) {
-      console.error("Error saving attendance:", error);
-  
-      if (error.code === 11000) {
-        res.status(400).json({ message: "Attendance already marked for this event" });
-      } else {
-        res.status(500).json({ message: "Failed to mark attendance" });
-      }
-    }
-  });
-
-app.post('/NewUser', async (req, res) => {
-   handleJob();
-  try {
-    const { 
-      username, 
-      email, 
-      accesstype, 
-      tpoemail, 
-      classemail, 
-      password 
-    } = req.body;
-
-    // create new user object
-    const newUser = new userdata({
-      username,
-      email,
-      accesstype,
-      tpoemail,
-      classemail,
-      password
+  console.log("✅ Registered /NewUser route (for AWS Lambda compatibility)");
+} else {
+  console.error("❌ CRITICAL: Could not register /NewUser route - handler not found!");
+  // Add a basic handler that logs the error
+  app.post("/NewUser", (req, res) => {
+    console.error("❌ /NewUser called but handler not available!");
+    console.error("Request body:", req.body);
+    res.status(500).json({ 
+      error: "NewUser handler not properly registered",
+      message: "Please check server logs"
     });
-
-    // save to DB
-    await newUser.save();
-
-    res.status(201).json({
-      message: "User created successfully ✅",
-      user: newUser
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Error creating user ❌",
-      error: error.message
-    });
-  }
-});
-
-// --- New user endpoints: list, get, create, replace, and push-update ---
-// GET: list all users
-app.get('/api/users', async (req, res) => {
-  try {
-    handleJob();
-    const users = await userdata.find();
-    res.status(200).json(users);
-  } catch (err) {
-    console.error('Error fetching users:', err);
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
-});
-
-// GET: single user by id
-app.get('/api/users/:id', async (req, res) => {
-  try {
-    handleJob();
-    const user = await userdata.findById(req.params.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    res.json(user);
-  } catch (err) {
-    console.error('Error fetching user:', err);
-    res.status(500).json({ error: 'Failed to fetch user' });
-  }
-});
-
-// POST: create user (alternative to /NewUser)
-app.post('/api/users', async (req, res) => {
-  try {
-    handleJob();
-    const newUser = new userdata(req.body);
-    await newUser.save();
-    res.status(201).json(newUser);
-  } catch (err) {
-    console.error('Error creating user:', err);
-    res.status(400).json({ error: 'Failed to create user', details: err.message });
-  }
-});
-
-// PUT: replace entire user document (use with full document body)
-app.put('/api/users/:id', async (req, res) => {
-  try {
-    handleJob();
-    // findOneAndReplace will replace the document; it requires the full doc
-    const replaced = await userdata.findOneAndReplace(
-      { _id: req.params.id },
-      req.body,
-      { new: true }
-    );
-    if (!replaced) return res.status(404).json({ error: 'User not found to replace' });
-    res.json(replaced);
-  } catch (err) {
-    console.error('Error replacing user:', err);
-    res.status(400).json({ error: 'Failed to replace user', details: err.message });
-  }
-});
-
-// PATCH: push a value into an array field of the user document
-// Request body: { field: "arrayFieldName", value: <value> }
-app.patch('/api/users/:id/push', async (req, res) => {
-  try {
-    handleJob();
-    const { field, value } = req.body;
-    if (!field) return res.status(400).json({ error: 'Field name is required' });
-
-    // Build dynamic $push update
-    const update = { $push: {} };
-    update.$push[field] = value;
-
-    const updated = await userdata.findByIdAndUpdate(req.params.id, update, { new: true });
-    if (!updated) return res.status(404).json({ error: 'User not found to push update' });
-    res.json(updated);
-  } catch (err) {
-    console.error('Error pushing to user array field:', err);
-    res.status(400).json({ error: 'Failed to push update', details: err.message });
-  }
-});
-  app.post('/api/classteacher/getdata/students/:email', async (req, res) => {
-         handleJob();
-    console.log("ali");
-    const {email} = req.params;
-    console.log(email);
-    
-    try {
-      const students = await userdata.find({ classemail: req.params.email });
-      res.json(students);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch students.' });
-    }
   });
-  
-  // GET profile of a specific student
-  app.post('/api/classteacher/getdata/student/profile/:email', async (req, res) => {
-         handleJob();
-    try {
-      const student = await userdata.find({ email: req.params.email });
-      res.json(student);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch student profile.' });
-    }
-  });
+}
 
-  app.post('/api/attendance/all', async (req, res) => {
-         handleJob();
-    try {
-      const records = await Attendence.find().sort({ markedAt: -1 });
-      res.json(records);
-    } catch (err) {
-      res.status(500).json({ error: 'Server error while fetching attendance' });
-    }
-  });
+app.use("/api", messageRoutes);
+app.use("/api", driveRoutes);
+app.use("/api", resourceRoutes);
+app.use("/api", tpoRoutes);
+app.use("/api", emailUrlRoutes);
+app.use("/api", aiRoutes); // AI services: /api/ai/resume/*, /api/ai/predict/placement, /api/ai/match/skills
+app.use("/api", aiProxyRoutes); // Unified AI proxy: /api/ai-proxy/* (all POST requests, uses stored AI service URL)
+app.use("/api", recruiterRoutes);
+app.use("/api", resumeRoutes);
+app.use("/api", driveAiRoutes); // Drive AI check: /api/drive/ai-check (uses ML/DL placement prediction service)
+app.use("/", syncRoutes);
 
-// ---------- EmailUrl endpoints ----------
-// POST: list all email-url mappings (uses POST instead of GET)
-app.post('/api/emailurls/list', async (req, res) => {
-  try {
-    handleJob();
-    const list = await EmailUrl.find();
-    res.status(200).json(list);
-  } catch (err) {
-    console.error('Error fetching EmailUrl list:', err);
-    res.status(500).json({ error: 'Failed to fetch email-url list' });
-  }
-});
+// Start cron sync job
+startCronSync();
 
-// POST: get single email-url by email (email provided in body: { email: '<email>' })
-app.post('/api/emailurls/get', async (req, res) => {
-  try {
-    handleJob();
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'email is required in request body' });
-    const doc = await EmailUrl.findOne({ email });
-    if (!doc) return res.status(404).json({ error: 'Not found' });
-    res.json(doc);
-  } catch (err) {
-    console.error('Error fetching EmailUrl:', err);
-    res.status(500).json({ error: 'Failed to fetch email-url' });
-  }
-});
-
-// POST: create new email-url mapping
-app.post('/api/emailurls', async (req, res) => {
-  try {
-    handleJob();
-    const { email, url } = req.body;
-    if (!email || !url) return res.status(400).json({ error: 'email and url are required' });
-    
-    // Check if email already exists
-    const existingEmail = await EmailUrl.findOne({ email });
-    if (existingEmail) {
-      return res.status(400).json({ error: 'Email already exists' });
-    }
-    
-    const newDoc = new EmailUrl(req.body);
-    const saved = await newDoc.save();
-    res.status(201).json(saved);
-  } catch (err) {
-    console.error('Error creating EmailUrl:', err);
-    res.status(400).json({ error: 'Failed to create email-url', details: err.message });
-  }
-});
-
-// PUT: replace entire email-url document (use with full document body)
-app.put('/api/emailurls/:id', async (req, res) => {
-  try {
-    handleJob();
-    const replaced = await EmailUrl.findOneAndReplace({ _id: req.params.id }, req.body, { new: true });
-    if (!replaced) return res.status(404).json({ error: 'Not found to replace' });
-    res.json(replaced);
-  } catch (err) {
-    console.error('Error replacing EmailUrl:', err);
-    res.status(400).json({ error: 'Failed to replace email-url', details: err.message });
-  }
-});
-
-  //corn sync logic for 1 minute
-
-//   cron.schedule("*/1 * * * *", async () => {
-//   try {
-//     console.log(" Cron sync stared ");
-//     for(var i = 0 ; i < 5 ; i++){
-//       switch(i){
-//         case 0:
-//           const unsyncedDrives = await Drive.find({ isSync: false });
-//           if(unsyncedDrives.length == 0){
-//             console.log("No new Drive data found while sync ... ")
-//           }
-//           else{
-//           for (const drive of unsyncedDrives) {
-//             const payload = {
-//                 ...drive.toObject(),
-//                 sourcefog: fogapi,
-//                 syncTable: "1",
-//               };
-//             await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata",payload)
-//             drive.isSync = true;
-//             await drive.save();
-            
-//           }
-//         } 
-//           case 1:
-//           const unsyncedTpoevent = await TpoEvent.find({ isSync: false });
-//           if(unsyncedTpoevent.length == 0){
-//             console.log("No new Event data found while sync ... ")
-//           }
-//           else{
-//           for (const event of unsyncedTpoevent) {
-//             const payload = {
-//                 ...event.toObject(),
-//                 sourcefog: fogapi,
-//                 syncTable: "2",
-//               };
-//             await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata",payload)
-//             event.isSync = true;
-//             await event.save();
-//           }
-//           }
-//           case 2:
-//           const unsyncedResource = await Resource.find({ isSync: false });
-//           if(unsyncedResource.length == 0){
-//             console.log("No new Resource data found while sync ... ")
-//           }
-//           else{
-//           for (const Resource of unsyncedResource) {
-//             const payload = {
-//                 ...Resource.toObject(),
-//                 sourcefog: fogapi,
-//                 syncTable: "3",
-//               };
-//             await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata",payload)
-//             Resource.isSync = true;
-//             await Resource.save();
-//           }
-//           }
-//           case 3:
-//           const unsyncedMessage = await Message.find({ isSync: false });
-//           if(unsyncedMessage.length == 0){
-//             console.log("No new Drive data found while sync ... ")
-//           }
-//           else{
-//           for (const msg of unsyncedMessage) {
-//             const payload = {
-//                 ...msg.toObject(),
-//                 sourcefog: fogapi,
-//                 syncTable: "4",
-//               };
-//             await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata",payload)
-//             msg.isSync = true;
-//             await msg.save();
-//           }
-//           }
-//           case 4:
-//           const unsyncedAttendance = await Attendence.find({ isSync: false });
-//           if(unsyncedAttendance.length == 0){
-//             console.log("No new Drive data found while sync ... ")
-//           }
-//           else{
-//           for (const att of unsyncedAttendance) {
-//             const payload = {
-//                 ...att.toObject(),
-//                 sourcefog: fogapi,
-//                 syncTable: "5",
-//               };
-//             await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata",payload)
-//             att.isSync = true;
-//             await att.save();
-//           }
-//           }
-//       }
-//     }
-//   } catch (err) {
-//     console.error("❌ Cron error:", err.message);
-//   }
-// });
-
-cron.schedule("*/1 * * * *", async () => {
-  try {
-    console.log();
-    console.log("⏳ Cron sync started...");
-
-    // 0️⃣ Drives
-    const unsyncedDrives = await Drive.find({ isSync: false });
-    if (unsyncedDrives.length === 0) {
-      console.log("No new Drive data found while sync...");
-    } else {
-      for (const drive of unsyncedDrives) {
-        const payload = {
-          ...drive.toObject(),
-          sourcefog: fogapi,
-          syncTable: "1",
-        };
-        await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata", payload);
-        drive.isSync = true;
-        await drive.save();
-      }
-       console.log("new Drive data found and succesfully sync ...");
-    }
-
-    // 1️⃣ Events
-    const unsyncedEvents = await TpoEvent.find({ isSync: false });
-    if (unsyncedEvents.length === 0) {
-      console.log("No new Event data found while sync...");
-    } else {
-      for (const event of unsyncedEvents) {
-        const payload = {
-          ...event.toObject(),
-          sourcefog: fogapi,
-          syncTable: "2",
-        };
-        await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata", payload);
-        event.isSync = true;
-        await event.save();
-      }
-       console.log("new Event data found and succesfully sync ...");
-    }
-
-    // 2️⃣ Resources
-    const unsyncedResources = await Resource.find({ isSync: false });
-    if (unsyncedResources.length === 0) {
-      console.log("No new Resource data found while sync...");
-    } else {
-      for (const res of unsyncedResources) {
-        const payload = {
-          ...res.toObject(),
-          sourcefog: fogapi,
-          syncTable: "3",
-        };
-        await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata", payload);
-        res.isSync = true;
-        await res.save();
-      }
-       console.log("new Resource data found and succesfully sync ...");
-    }
-
-   
-
-    // 4️⃣ Attendance
-    const unsyncedAttendance = await Attendence.find({ isSync: false });
-    if (unsyncedAttendance.length === 0) {
-      console.log("No new Attendance data found while sync...");
-    } else {
-      for (const att of unsyncedAttendance) {
-        const payload = {
-          ...att.toObject(),
-          sourcefog: fogapi,
-          syncTable: "5",
-        };
-        await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata", payload);
-        att.isSync = true;
-        await att.save();
-      }
-       console.log("new Attendance data found and succesfully sync ...");
-    }
-
-     // 3️⃣ Messages
-    const unsyncedMessages = await message.find({ isSync: false });
-    if (unsyncedMessages.length === 0) {
-      console.log("No new Message data found while sync...");
-    } else {
-      for (const msg of unsyncedMessages) {
-        const payload = {
-          ...msg.toObject(),
-          sourcefog: fogapi,
-          syncTable: "4",
-        };
-        await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata", payload);
-        msg.isSync = true;
-        await msg.save();
-      }
-      console.log("new Message data found and succesfully sync ...");
-    }
-
-    // 6️⃣ EmailUrls
-    const unsyncedEmailUrls = await EmailUrl.find({ isSync: false });
-    if (unsyncedEmailUrls.length === 0) {
-      console.log("No new EmailUrl data found while sync...");
-    } else {
-      for (const e of unsyncedEmailUrls) {
-        const payload = {
-          ...e.toObject(),
-          sourcefog: fogapi,
-          syncTable: "6",
-        };
-        await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/syncdata", payload);
-        e.isSync = true;
-        await e.save();
-      }
-      console.log("new EmailUrl data found and succesfully sync ...");
-    }
-    console.log("✅ Sync completed this cycle");
-    console.log();
-
-  } catch (err) {
-    console.error("❌ Cron error:", err.message);
-  }
-});
-
-
-app.listen(port, '0.0.0.0', () => {
-  console.log(`Server running on port ${port}`);
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`AI Services (Unified on port 8000):`);
+  console.log(`  - Base URL: http://localhost:8000`);
+  console.log(`  - Resume AI: http://localhost:8000/resume/*`);
+  console.log(`  - Placement Prediction: http://localhost:8000/predict/*`);
+  console.log(`  - Skill Match: http://localhost:8000/match/*`);
+  console.log(`API Endpoints:`);
+  console.log(`  - Drive AI Check: POST /api/drive/ai-check`);
+  console.log(`  - Placement Prediction: POST /api/ai/predict/placement`);
+  console.log(`  - Unified AI Proxy: POST /api/ai-proxy/* (uses stored AI service URL from signin)`);
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from "react-router-dom";
+import { getCurrentUser, isAuthenticated } from './utils/auth';
 
 export default function MessageInterface() {
   const location = useLocation();
@@ -7,7 +8,14 @@ export default function MessageInterface() {
   const { end1, end2 } = location.state || {};
   console.log(end1 + " " + end2);
   
-  const user = JSON.parse(localStorage.getItem("user"));
+  // Check authentication
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+  
+  const user = getCurrentUser();
   const [data, setData] = useState([]);
   const [message, setMessage] = useState("");
 

@@ -27,8 +27,30 @@ const driveSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["Upcoming", "Ongoing", "Closed"],
-        default: "Upcoming"
+        enum: ["Upcoming", "Ongoing", "Closed", "Pending Approval"],
+        default: "Pending Approval"
+    },
+    // AI & Recruiter Fields
+    requiredSkills: {
+        type: [String],
+        default: []
+    },
+    difficultyLevel: {
+        type: String,
+        enum: ["Easy", "Medium", "Hard"],
+        default: "Medium"
+    },
+    createdBy: {
+        type: String, // Recruiter email
+        default: null
+    },
+    approvedBy: {
+        type: String, // Admin email
+        default: null
+    },
+    isPublic: {
+        type: Boolean,
+        default: false // Becomes true after admin approval
     },
     isSync: {
         type: Boolean,

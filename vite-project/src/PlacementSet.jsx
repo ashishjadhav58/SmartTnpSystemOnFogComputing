@@ -18,8 +18,10 @@ export default function PlacementSet() {
   useEffect(() => {
     const fetchDrives = async () => {
       try {
+        // Fetch all drives including pending ones for TPO view
         const response = await axios.post(`${backendUrl}/api/drivedataa`);
-        setData(response.data);
+        // Filter to show all drives (TPO can see pending, approved, etc.)
+        setData(response.data || []);
       } catch (err) {
         console.log(err);
       }

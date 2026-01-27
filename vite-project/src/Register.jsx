@@ -14,9 +14,17 @@ export default function Register() {
     
 
     const senddata = async (event) => {
-      event.preventDefault();  
+      event.preventDefault();
+      
+      // Validate password length (minimum 8 characters)
+      if (!data.password || data.password.length < 8) {
+        alert("Password must be at least 8 characters long");
+        return;
+      }
+      
       try {
-      const response = await axios.post("https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/signup",data,{
+      const awsApiUrl = import.meta.env.VITE_AWS_API_GATEWAY || "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod";
+      const response = await axios.post(`${awsApiUrl}/signup`, data, {
         headers: { 'Content-Type': 'application/json' }       
       })
       console.log(response.data);
@@ -32,7 +40,9 @@ export default function Register() {
       }
       catch(error){
         console.log("404 not found");
-        
+        if (error.response?.data?.message) {
+          alert(error.response.data.message);
+        }
       }
     };
     const [log,setlog] = useState(false)
@@ -295,9 +305,15 @@ export default function Register() {
                       id='log' 
                       type="password" 
                       className="form-control" 
-                      placeholder='Enter your password' 
+                      placeholder='Enter your password (min 8 characters)' 
+                      minLength={8}
                       required
                     />
+                    {data.password && data.password.length < 8 && (
+                      <small className="text-danger" style={{ fontSize: '0.875rem', marginTop: '0.25rem', display: 'block' }}>
+                        Password must be at least 8 characters long
+                      </small>
+                    )}
                   </div>
                 </div>
                 

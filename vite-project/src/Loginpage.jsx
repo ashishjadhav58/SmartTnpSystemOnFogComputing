@@ -1,12 +1,64 @@
 import React, { useState, useEffect } from 'react';
 import './style.css';
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setBackendUrl } from "./store/backendSlice";
+import { isAuthenticated, getCurrentUser, isRecruiterAuthenticated, getCurrentRecruiter } from './utils/auth';
 
 export default function Loginpage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const [logcode, setlogcode] = useState(0);
+  
+  // Redirect if already logged in (only if user data is valid)
+  useEffect(() => {
+    const user = getCurrentUser();
+    // Only redirect if we have valid user data with required fields
+    if (user && user.email && user.accesstype && isAuthenticated()) {
+      switch (user.accesstype) {
+        case "Student":
+          navigate('/student', { replace: true });
+          break;
+        case "Class Teacher":
+          navigate('/classteacher', { replace: true });
+          break;
+        case "Training and placement officer":
+          navigate('/tpo', { replace: true });
+          break;
+        case "Recruiter":
+          // Recruiters should be redirected to recruiter dashboard
+          // Format user as recruiter and save to recruiter session
+          const recruiterData = {
+            _id: user._id || user.id || user.email,
+            email: user.email,
+            username: user.username || user.email,
+            companyName: user.companyName || '',
+            contactNumber: user.contactNumber || '',
+            accesstype: "Recruiter",
+            isApproved: user.isApproved !== false,
+            createdBy: user.createdBy || user.tpoemail || '',
+            approvedBy: user.approvedBy || ''
+          };
+          localStorage.setItem("recruiter", JSON.stringify(recruiterData));
+          localStorage.removeItem("user"); // Clear regular user session
+          navigate('/recruiter/dashboard', { replace: true });
+          break;
+        default:
+          // Invalid access type, clear session
+          localStorage.removeItem('user');
+          localStorage.removeItem('fogIp');
+      }
+    } else if (user && (!user.email || !user.accesstype)) {
+      // Invalid user data, clear it
+      localStorage.removeItem('user');
+      localStorage.removeItem('fogIp');
+    }
+    
+    // Also check if recruiter is logged in and redirect
+    if (isRecruiterAuthenticated()) {
+      navigate('/recruiter/dashboard', { replace: true });
+    }
+  }, [navigate]);
   const [data, setdata] = useState({
     username: '',
     password: ''
@@ -52,8 +104,8 @@ export default function Loginpage() {
     
     if (!data.password) {
       errors.password = 'Password is required';
-    } else if (data.password.length < 4) {
-      errors.password = 'Password must be at least 4 characters';
+    } else if (data.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
     }
     
     setFieldErrors(errors);
@@ -72,8 +124,9 @@ export default function Loginpage() {
     setLoading(true);
 
     try {
+      const awsApiUrl = import.meta.env.VITE_AWS_API_GATEWAY || "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod";
       const response = await axios.post(
-        "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/signin",
+        `${awsApiUrl}/signin`,
         {
           username: data.username,
           password: data.password
@@ -82,6 +135,7 @@ export default function Loginpage() {
 
       const user = response.data?.data;
       const fogIp = response.data.ip;
+      const aiServices = response.data?.aiServices || {};
       
       if (user) {
         // Remember email if checkbox is checked
@@ -92,21 +146,63 @@ export default function Loginpage() {
         }
 
         dispatch(setBackendUrl(fogIp));
-        localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("fogIp", fogIp);
         
+        // Store AI service URLs from signin response
+        if (aiServices && Object.keys(aiServices).length > 0) {
+          localStorage.setItem("aiServices", JSON.stringify(aiServices));
+          console.log('[Login] Stored AI services:', aiServices);
+        } else {
+          // Fallback to default localhost if not provided
+          const defaultAiServices = {
+            baseUrl: 'http://localhost:8000',
+            resume: 'http://localhost:8000/resume',
+            predict: 'http://localhost:8000/predict',
+            match: 'http://localhost:8000/match',
+            chat: 'http://localhost:8000/resume/chat'
+          };
+          localStorage.setItem("aiServices", JSON.stringify(defaultAiServices));
+          console.log('[Login] Using default AI services:', defaultAiServices);
+        }
+        
+        // Redirect based on access type
         switch (user.accesstype) {
           case "Student":
-            setlogcode(1);
+            localStorage.setItem("user", JSON.stringify(user));
+            localStorage.removeItem("recruiter"); // Clear recruiter session
+            navigate('/student', { replace: true });
             break;
           case "Class Teacher":
-            setlogcode(2);
+            localStorage.setItem("user", JSON.stringify(user));
+            localStorage.removeItem("recruiter"); // Clear recruiter session
+            navigate('/classteacher', { replace: true });
             break;
           case "Training and placement officer":
-            setlogcode(3);
+            localStorage.setItem("user", JSON.stringify(user));
+            localStorage.removeItem("recruiter"); // Clear recruiter session
+            navigate('/tpo', { replace: true });
+            break;
+          case "Recruiter":
+            // Recruiters: Save as recruiter session, clear user session
+            const recruiterData = {
+              _id: user._id || user.id || user.email,
+              email: user.email,
+              username: user.username || user.email,
+              companyName: user.companyName || '',
+              contactNumber: user.contactNumber || '',
+              accesstype: "Recruiter",
+              isApproved: user.isApproved !== false,
+              createdBy: user.createdBy || user.tpoemail || '',
+              approvedBy: user.approvedBy || ''
+            };
+            localStorage.setItem("recruiter", JSON.stringify(recruiterData));
+            localStorage.removeItem("user"); // Clear regular user session
+            navigate('/recruiter/dashboard', { replace: true });
             break;
           default:
-            setError("Unknown access type. Please contact support.");
+            setError(`Unknown access type: ${user.accesstype}. Please contact support or use the appropriate login page.`);
+            localStorage.removeItem("user");
+            localStorage.removeItem("recruiter");
         }
       } else {
         setError("Invalid email or password. Please try again.");

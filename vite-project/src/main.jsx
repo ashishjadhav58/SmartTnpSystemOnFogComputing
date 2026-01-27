@@ -6,7 +6,11 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import App from './App.jsx';
 import { Provider } from 'react-redux';
 import { store } from './store/store';
+import { clearInvalidSession } from './utils/clearInvalidSession';
 // import Tp from './Tp.jsx'; // if you need this later
+
+// Clear invalid session data on app startup
+clearInvalidSession();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

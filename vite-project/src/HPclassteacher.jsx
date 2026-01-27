@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './style.css'
 import Stddashboard from './Stddashboard'
 import Message from './Message'
@@ -11,22 +12,98 @@ import CTAttendence from './CTAttendence'
 import StSelfattendence from './StSelfattendence'
 import StINTERVIEWINFORMATIONGROUPS from './StINTERVIEWINFORMATIONGROUPS'
 import ProfileEdit from './ProfileEdit'
+import { getCurrentUser, isAuthenticated, hasAccessType } from './utils/auth'
+
 export default function HPclassteacher() {
-  const [user,setuser]=useState(null)
-  const [islog,setislog]=useState(!!localStorage.getItem("user"))
+  // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
+  const navigate = useNavigate();
+  const [user, setuser] = useState(null);
+  const [islog, setislog] = useState(false);
+  const [choice, setchoice] = useState(1);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
+    // Check authentication
+    if (!isAuthenticated()) {
+      navigate('/', { replace: true });
+      return;
+    }
+
+    // Check if user is Class Teacher
+    if (!hasAccessType('Class Teacher')) {
+      const currentUser = getCurrentUser();
+      if (currentUser) {
+        switch (currentUser.accesstype) {
+          case 'Student':
+            navigate('/student', { replace: true });
+            break;
+          case 'Training and placement officer':
+            navigate('/tpo', { replace: true });
+            break;
+          default:
+            navigate('/', { replace: true });
+        }
+      } else {
+        navigate('/', { replace: true });
+      }
+      return;
+    }
+
+    const storedUser = getCurrentUser();
     if (storedUser) {
       setuser(storedUser);
       setislog(true);
+    } else {
+      navigate('/', { replace: true });
     }
-  }, []);
+  }, [navigate]);
+  
+  // If not authenticated, redirect immediately
+  if (!isAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
+
+  // If not Class Teacher, redirect to appropriate page
+  if (!hasAccessType('Class Teacher')) {
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.accesstype) {
+      switch (currentUser.accesstype) {
+        case 'Student':
+          return <Navigate to="/student" replace />;
+        case 'Training and placement officer':
+          return <Navigate to="/tpo" replace />;
+        default:
+          localStorage.removeItem('user');
+          localStorage.removeItem('fogIp');
+          return <Navigate to="/" replace />;
+      }
+    }
+    return <Navigate to="/" replace />;
+  }
+  
+  // Show loading state if authenticated but user data not loaded yet
+  if (!islog || !user) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <p style={{ marginTop: '10px' }}>Loading class teacher portal...</p>
+      </div>
+    );
+  }
   
   function logout(){
+    // Clear all session data
     localStorage.removeItem("fogIp");
     localStorage.removeItem("user");
+    localStorage.removeItem("recruiter");
+    localStorage.removeItem("rememberedEmail");
     setislog(false);
+    // Redirect to login
+    window.location.href = '/';
   }
+  
   const closeMobileNav = () => {
     try {
       const el = document.querySelector('.offcanvas.show');
@@ -36,8 +113,6 @@ export default function HPclassteacher() {
       }
     } catch (e) {}
   }
-  const [choice,setchoice] = useState(1)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen)

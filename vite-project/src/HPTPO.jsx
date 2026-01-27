@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import './style.css'
 import Stddashboard from './Stddashboard'
 import Message from './Message'
@@ -14,22 +15,101 @@ import StSelfattendence from './StSelfattendence'
 import Datamanagement from './tpopages/Datamanagement'
 import StINTERVIEWINFORMATIONGROUPS from './StINTERVIEWINFORMATIONGROUPS'
 import ProfileEdit from './ProfileEdit'
+import CreateRecruiter from './tpopages/CreateRecruiter'
+import ManageRecruiters from './tpopages/ManageRecruiters'
+import ApproveDrives from './tpopages/ApproveDrives'
+import { getCurrentUser, isAuthenticated, hasAccessType } from './utils/auth'
+
 export default function HPTPO() {
-  const [user,setuser]=useState(null)
-  const [islog,setislog]=useState(!!localStorage.getItem("user"))
+  // ALL HOOKS MUST BE CALLED FIRST - before any conditional returns
+  const navigate = useNavigate();
+  const [user, setuser] = useState(null);
+  const [islog, setislog] = useState(false);
+  const [choice, setchoice] = useState(1);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem("user"));
+    // Check authentication
+    if (!isAuthenticated()) {
+      navigate('/', { replace: true });
+      return;
+    }
+
+    // Check if user is TPO
+    if (!hasAccessType('Training and placement officer')) {
+      const currentUser = getCurrentUser();
+      if (currentUser) {
+        switch (currentUser.accesstype) {
+          case 'Student':
+            navigate('/student', { replace: true });
+            break;
+          case 'Class Teacher':
+            navigate('/classteacher', { replace: true });
+            break;
+          default:
+            navigate('/', { replace: true });
+        }
+      } else {
+        navigate('/', { replace: true });
+      }
+      return;
+    }
+
+    const storedUser = getCurrentUser();
     if (storedUser) {
       setuser(storedUser);
       setislog(true);
+    } else {
+      navigate('/', { replace: true });
     }
-  }, []);
+  }, [navigate]);
+  
+  // If not authenticated, redirect immediately
+  if (!isAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
+
+  // If not TPO, redirect to appropriate page
+  if (!hasAccessType('Training and placement officer')) {
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.accesstype) {
+      switch (currentUser.accesstype) {
+        case 'Student':
+          return <Navigate to="/student" replace />;
+        case 'Class Teacher':
+          return <Navigate to="/classteacher" replace />;
+        default:
+          localStorage.removeItem('user');
+          localStorage.removeItem('fogIp');
+          return <Navigate to="/" replace />;
+      }
+    }
+    return <Navigate to="/" replace />;
+  }
+  
+  // Show loading state if authenticated but user data not loaded yet
+  if (!islog || !user) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <p style={{ marginTop: '10px' }}>Loading TPO portal...</p>
+      </div>
+    );
+  }
   
   function logout(){
+    // Clear all session data
     localStorage.removeItem("fogIp");
     localStorage.removeItem("user");
+    localStorage.removeItem("recruiter");
+    localStorage.removeItem("rememberedEmail");
     setislog(false);
+    // Redirect to login
+    window.location.href = '/';
   }
+  
   const closeMobileNav = () => {
     try {
       const el = document.querySelector('.offcanvas.show');
@@ -39,8 +119,6 @@ export default function HPTPO() {
       }
     } catch (e) {}
   }
-  const [choice,setchoice] = useState(1)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen)
@@ -77,6 +155,18 @@ export default function HPTPO() {
       case "Upcoming Drives":
           setchoice(6)
           break;
+      case "Create Recruiter":
+      case "Recruiter":
+          setchoice(8)
+          break;
+      case "Manage Recruiters":
+      case "Recruiters":
+          setchoice(9)
+          break;
+      case "Approve Drives":
+      case "Drive Approval":
+          setchoice(10)
+          break;
       default:
         // Fallback: check if text contains keywords
         if (cleanText.includes("Data Management") || text.includes("Data Management")) {
@@ -89,6 +179,12 @@ export default function HPTPO() {
           setchoice(5);
         } else if (cleanText.includes("Upcoming Drives") || text.includes("Upcoming Drives")) {
           setchoice(6);
+        } else if (cleanText.includes("Create Recruiter") || text.includes("Recruiter") && !cleanText.includes("Manage")) {
+          setchoice(8);
+        } else if (cleanText.includes("Manage Recruiters") || (cleanText.includes("Recruiters") && cleanText.includes("Manage"))) {
+          setchoice(9);
+        } else if (cleanText.includes("Approve Drives") || cleanText.includes("Drive Approval")) {
+          setchoice(10);
         }
         break;
     }
@@ -282,6 +378,9 @@ export default function HPTPO() {
               <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>📚 T & P Resources</button>
               <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>🚀 Upcoming Drives</button>
               <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>💬 Messages</button>
+              <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>👥 Create Recruiter</button>
+              <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>👥 Manage Recruiters</button>
+              <button onClick={(event)=>{ actionperform(event); closeMobileNav(); }} data-bs-dismiss="offcanvas" className='btn btn-light text-start' style={{ borderRadius: '12px', justifyContent: 'flex-start', padding: '0.875rem 1rem' }}>✅ Approve Drives</button>
               
               <hr style={{ margin: '1rem 0', borderColor: 'rgba(15, 23, 42, 0.1)' }} />
               
@@ -345,6 +444,30 @@ export default function HPTPO() {
                 >
                   💬 Messages
                 </button>
+                <button 
+                  id="dashboard-option" 
+                  onClick={(event)=>actionperform(event)} 
+                  className='btn btn-light text-start' 
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  👥 Create Recruiter
+                </button>
+                <button 
+                  id="dashboard-option" 
+                  onClick={(event)=>actionperform(event)} 
+                  className='btn btn-light text-start' 
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  👥 Manage Recruiters
+                </button>
+                <button 
+                  id="dashboard-option" 
+                  onClick={(event)=>actionperform(event)} 
+                  className='btn btn-light text-start' 
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  ✅ Approve Drives
+                </button>
                 </div>
               </div>
             )}
@@ -353,7 +476,17 @@ export default function HPTPO() {
             <div className={sidebarOpen ? 'col-sm-9 col-lg-10' : 'col-12'} style={{ transition: 'all var(--transition-base)', paddingLeft: sidebarOpen ? '1rem' : '0' }}>
               <div className="card fade-in" style={{ minHeight: '500px', padding: '2rem' }}>
                 {
-                  choice === 2 || choice === 1 ? <Datamanagement/> : choice === 3 ? <TpoEvent></TpoEvent> : choice === 4 ? <Tpresouce></Tpresouce> : choice === 5 ? <Message></Message> : choice ===6 ? <PlacementSet></PlacementSet> :choice === 7 ? <ProfileEdit></ProfileEdit> : ""
+                  choice === 1 ? <Datamanagement/> : 
+                  choice === 2 ? <Datamanagement/> : 
+                  choice === 3 ? <TpoEvent/> : 
+                  choice === 4 ? <Tpresouce/> : 
+                  choice === 5 ? <Message/> : 
+                  choice === 6 ? <PlacementSet/> :
+                  choice === 7 ? <ProfileEdit/> : 
+                  choice === 8 ? <CreateRecruiter/> :
+                  choice === 9 ? <ManageRecruiters/> :
+                  choice === 10 ? <ApproveDrives/> :
+                  <Datamanagement/>
                 }
               </div>
             </div>

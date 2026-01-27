@@ -124,12 +124,50 @@ exports.handler = async (event) => {
                 };
             }
 
+            // Construct AI service base URL
+            // AI services run on port 8000, same host as fog server
+            // Extract protocol and host from fog server URL
+            const fogBaseUrl = backendServer.replace(/\/$/, ''); // Remove trailing slash
+            let aiServiceBaseUrl;
+            
+            // Parse fog server URL to get protocol and host
+            const urlMatch = fogBaseUrl.match(/^(https?:\/\/[^\/]+)/);
+            if (urlMatch) {
+                const protocol = urlMatch[1].split('://')[0];
+                const host = urlMatch[1].split('://')[1].split(':')[0]; // Get host without port
+                // AI services use same protocol and host, but port 8000
+                aiServiceBaseUrl = `${protocol}://${host}:8000`;
+            } else {
+                // Fallback: if parsing fails, use localhost
+                aiServiceBaseUrl = 'http://localhost:8000';
+            }
+            
+            // For ngrok URLs, we need to check if port 8000 is exposed
+            // If not, we'll use the backend proxy endpoint instead
+            // For now, construct the URL - backend will handle proxying if needed
+            if (fogBaseUrl.includes('ngrok')) {
+                // For ngrok, AI service might be on a different tunnel
+                // Use backend proxy endpoint: {fogBaseUrl}/api/ai-proxy/*
+                aiServiceBaseUrl = `${fogBaseUrl}/api/ai-proxy`;
+            }
+
+            // AI service paths (all use POST method)
+            // If using backend proxy, paths are relative to /api/ai-proxy
+            const aiServices = {
+                baseUrl: aiServiceBaseUrl,
+                resume: `${aiServiceBaseUrl}${aiServiceBaseUrl.includes('/api/ai-proxy') ? '/resume' : '/resume'}`,
+                predict: `${aiServiceBaseUrl}${aiServiceBaseUrl.includes('/api/ai-proxy') ? '/predict' : '/predict'}`,
+                match: `${aiServiceBaseUrl}${aiServiceBaseUrl.includes('/api/ai-proxy') ? '/match' : '/match'}`,
+                chat: `${aiServiceBaseUrl}${aiServiceBaseUrl.includes('/api/ai-proxy') ? '/resume/chat' : '/resume/chat'}`
+            };
+
             return {
                 statusCode: 200,
                 headers,
                 body: JSON.stringify({
                     data: data.Item,
                     ip: backendServer,
+                    aiServices: aiServices,
                     message: "Login Successful"
                 })
             };
@@ -137,6 +175,16 @@ exports.handler = async (event) => {
 
         if (method === "POST" && path.endsWith("/signup")) {
             const { username, password, email, classemail, tpoemail, accesstype } = JSON.parse(event.body);
+            
+            // Validate password length (minimum 8 characters)
+            if (!password || password.length < 8) {
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ message: "Password must be at least 8 characters long" })
+                };
+            }
+            
             const id = uuidv4();
 
             const existingUser = await docclient.send(new GetCommand({ TableName: table, Key: { email } }));

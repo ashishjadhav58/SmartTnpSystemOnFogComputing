@@ -64,8 +64,9 @@ export default function ResumePage() {
             fileContent: base64Content
           };
           
+          const awsApiUrl = import.meta.env.VITE_AWS_API_GATEWAY || "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod";
           const response = await axios.post(
-            'https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod/uploadResume',
+            `${awsApiUrl}/uploadResume`,
             payload
           );
           

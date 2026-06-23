@@ -5,6 +5,7 @@ const Drive = require("../Models/drivedetail.js");
 const axios = require("axios");
 const { handleJob } = require("../middleware/handleJob");
 const { AI_SERVICES } = require("../config/constants");
+const { getAiServiceUrl } = require("../utils/getAiServiceUrl");
 
 // POST: Check student-drive match using AI
 router.post("/drive/ai-check", async (req, res) => {
@@ -88,19 +89,27 @@ router.post("/drive/ai-check", async (req, res) => {
     
     let matchResponse;
     try {
-      const skillMatchUrl = `${AI_SERVICES.SKILL_MATCH}/skills`;
+      // Get AI service URL from request or use default
+      const aiServiceBaseUrl = getAiServiceUrl(req);
+      const skillMatchUrl = `${aiServiceBaseUrl}/match/skills`;
       console.log("Calling skill match service:", skillMatchUrl);
       matchResponse = await axios.post(skillMatchUrl, {
         studentSkills: student.skills || [],
         driveRequiredSkills: drive.requiredSkills || [],
         driveDescription: drive.description || "",
         studentResume: resumeText
-      }, { timeout: 60000 }); // Increased to 60 seconds for ML/DL processing
+      }, { 
+        timeout: 60000, // Increased to 60 seconds for ML/DL processing
+        headers: {
+          'Content-Type': 'application/json',
+          'x-ai-service-url': aiServiceBaseUrl
+        }
+      });
       console.log("Skill match response:", matchResponse.data);
     } catch (matchErr) {
       console.error("Skill match service error:", matchErr.message);
       console.error("Error details:", {
-        url: `${AI_SERVICES.SKILL_MATCH}/skills`,
+        url: skillMatchUrl,
         status: matchErr.response?.status,
         data: matchErr.response?.data
       });
@@ -128,7 +137,9 @@ router.post("/drive/ai-check", async (req, res) => {
     
     let predictionResponse;
     try {
-      const predictionUrl = `${AI_SERVICES.PLACEMENT_PREDICTION}/placement`;
+      // Use same AI service base URL
+      const aiServiceBaseUrl = getAiServiceUrl(req);
+      const predictionUrl = `${aiServiceBaseUrl}/predict/placement`;
       console.log("Calling placement prediction service:", predictionUrl);
       predictionResponse = await axios.post(predictionUrl, {
         resumeScore: student.resumeScore || 0,
@@ -138,12 +149,18 @@ router.post("/drive/ai-check", async (req, res) => {
         numProjects: (student.resume?.projects || []).length,
         numSkills: (student.skills || []).length,
         skills: student.skills || []
-      }, { timeout: 60000 }); // Increased to 60 seconds for ML/DL processing
+      }, { 
+        timeout: 60000, // Increased to 60 seconds for ML/DL processing
+        headers: {
+          'Content-Type': 'application/json',
+          'x-ai-service-url': aiServiceBaseUrl
+        }
+      });
       console.log("Placement prediction response:", predictionResponse.data);
     } catch (predErr) {
       console.error("Placement prediction service error:", predErr.message);
       console.error("Error details:", {
-        url: `${AI_SERVICES.PLACEMENT_PREDICTION}/placement`,
+        url: predictionUrl,
         status: predErr.response?.status,
         data: predErr.response?.data
       });

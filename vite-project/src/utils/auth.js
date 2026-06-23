@@ -109,3 +109,54 @@ export const getUserRole = () => {
   if (recruiter) return 'Recruiter';
   return 'Student';
 };
+
+/**
+ * Check if admin is authenticated
+ * @returns {boolean} True if admin is logged in
+ */
+export const isAdminAuthenticated = () => {
+  try {
+    const adminSessionStr = localStorage.getItem('adminSession');
+    if (!adminSessionStr) return false;
+    const adminSession = JSON.parse(adminSessionStr);
+    return adminSession.isAdmin && adminSession.expiresAt > Date.now();
+  } catch (error) {
+    console.error('Error parsing admin session:', error);
+    return false;
+  }
+};
+
+/**
+ * Set admin session
+ * @param {Object} adminData - Admin session data
+ */
+export const setAdminSession = (adminData) => {
+  localStorage.setItem('adminSession', JSON.stringify(adminData));
+};
+
+/**
+ * Get current admin from session
+ * @returns {Object|null} Admin object or null if not logged in
+ */
+export const getCurrentAdmin = () => {
+  try {
+    const adminSessionStr = localStorage.getItem('adminSession');
+    if (!adminSessionStr) return null;
+    const adminSession = JSON.parse(adminSessionStr);
+    if (adminSession.expiresAt <= Date.now()) {
+      localStorage.removeItem('adminSession');
+      return null;
+    }
+    return adminSession;
+  } catch (error) {
+    console.error('Error parsing admin session:', error);
+    return null;
+  }
+};
+
+/**
+ * Clear admin session
+ */
+export const clearAdminSession = () => {
+  localStorage.removeItem('adminSession');
+};

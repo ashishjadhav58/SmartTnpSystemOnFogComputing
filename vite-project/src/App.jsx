@@ -18,6 +18,9 @@ import AIChatbot from './AIChatbot';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { getUserRole } from './utils/auth';
 import ErrorBoundary from './components/ErrorBoundary';
+import AdminLogin from './AdminLogin';
+import AdminDashboard from './AdminDashboard';
+import FogServerRegistry from './FogServerRegistry';
 
 export default function App() {
   return (
@@ -26,6 +29,23 @@ export default function App() {
         <Routes>
         <Route path="/" element={<Loginpage/>} />
         <Route path="/signup" element={<Register />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route 
+          path="/admin/dashboard" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/fog-server-registry" 
+          element={
+            <ProtectedRoute requireAdmin={true}>
+              <FogServerRegistry />
+            </ProtectedRoute>
+          } 
+        />
         
         {/* Protected Routes */}
         <Route 

@@ -1,5 +1,5 @@
 // API Configuration
-const FOG_API = "https://b36fc7d220bb.ngrok-free.app";
+const FOG_API = "https://c504-2409-40c2-3145-65c6-5109-bd59-afdc-5443.ngrok-free.app";
 const PORT = 5000;
 
 // AI Service URLs - All services on single port 8000 (localhost, NOT FOG_API)

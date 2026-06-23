@@ -1,9 +1,13 @@
 const cors = require("cors");
 
+// CORS configuration - Allow all origins for maximum compatibility
 const corsOptions = {
-  origin: ['http://localhost:5173', 'https://smartevolvetnp.vercel.app/','*'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: '*', // Allow all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-ai-service-url'],
+  credentials: false, // Set to false when using origin: '*'
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 };
 
 const corsMiddleware = cors(corsOptions);

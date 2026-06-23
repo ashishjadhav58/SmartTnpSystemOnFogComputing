@@ -5,6 +5,7 @@ const Resume = require("../Models/Resume.js");
 const axios = require("axios");
 const { handleJob } = require("../middleware/handleJob");
 const { AI_SERVICES } = require("../config/constants");
+const { getAiServiceUrl } = require("../utils/getAiServiceUrl");
 
 // POST: Save/Update student resume
 router.post("/resume/save/:studentId", async (req, res) => {
@@ -42,13 +43,21 @@ router.post("/resume/save/:studentId", async (req, res) => {
     let resumeScore = 0;
     let atsScore = 0;
     try {
-      const aiResponse = await axios.post(`${AI_SERVICES.RESUME_AI}/score`, {
+      // Get AI service URL from request or use default
+      const aiServiceBaseUrl = getAiServiceUrl(req);
+      const resumeScoreUrl = `${aiServiceBaseUrl}/resume/score`;
+      
+      const aiResponse = await axios.post(resumeScoreUrl, {
         education: resumeEducation,
         skills: resumeSkills,
         projects: resumeProjects,
         internships: resumeInternships
       }, {
-        timeout: 10000
+        timeout: 10000,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-ai-service-url': aiServiceBaseUrl
+        }
       });
       
       if (aiResponse.data) {

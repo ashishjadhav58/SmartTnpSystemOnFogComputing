@@ -1,0 +1,176 @@
+import React, { useEffect, useState } from 'react';
+import { useSelector } from "react-redux";
+
+export default function Stplacementdrive() {
+  const [data, setData] = useState([]);
+  const [modalData, setModalData] = useState(null);
+  const [aiCheckResult, setAiCheckResult] = useState(null);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const backendUrl = useSelector((state) => state.backend.backendUrl);
+  useEffect(() => {
+    const fetchDrives = async () => {
+      try {
+        const response = await axios.post(`${backendUrl}/api/drivedataa`);
+        setData(Array.isArray(response.data)?response.data:[]);
+      } catch (err) {
+        console.log(err);
+      }
+    };
+    fetchDrives();
+  }, []);
+
+  const upcoming = data.filter(d => new Date(d.driveDate) >= new Date());
+  const happened = data.filter(d => new Date(d.driveDate) < new Date());
+
+  const openModal = (drive) => {
+    setModalData(drive);
+  };
+
+  const closeModal = () => {
+    setModalData(null);
+    setAiCheckResult(null);
+  };
+
+  const handleAICheck = async () => {
+    setLoadingAI(true);
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user || !user._id) {
+        alert('Please login to use AI Check');
+        return;
+      }
+
+      const response = await axios.post(`${backendUrl}/api/drive/ai-check`, {
+        studentId: user._id,
+        driveId: modalData._id
+      });
+
+      setAiCheckResult(response.data);
+    } catch (err) {
+      console.error('AI Check error:', err);
+      alert('Failed to perform AI check. Please try again.');
+    } finally {
+      setLoadingAI(false);
+    }
+  };
+
+  const DriveCard = ({ drive,m }) => (
+    <div
+      className="card m-2 p-3 shadow"
+      style={{ width: "250px", cursor: "pointer" }}
+      onClick={() => openModal(drive)}
+    >
+      <h5>{drive.companyName}</h5>
+      <p><strong>Role:</strong> {drive.jobRole}</p>
+      <p><strong>Date:</strong> {new Date(drive.driveDate).toDateString()}</p>
+      {m===1?<p><strong>Status:</strong> {drive.status}</p>:<p><strong>Status:</strong> Happend</p>}
+    </div>
+  );
+
+  return (
+    <div className="container">
+      <h4 className="text-center mt-4">Placement Drives</h4>
+
+      <h5 className="mt-4">Upcoming Drives</h5>
+      <div className="d-flex flex-wrap">
+        {upcoming.length > 0 ? (
+          upcoming.map(d => <DriveCard key={d._id} drive={d} m={1}/>)
+        ) : (
+          <p>No upcoming drives.</p>
+        )}
+      </div>
+
+      <h5 className="mt-4">Happened Drives</h5>
+      <div className="d-flex flex-wrap">
+        {happened.length > 0 ? (
+          happened.map(d => <DriveCard key={d._id} drive={d} m={0} />)
+        ) : (
+          <p>No past drives.</p>
+        )}
+      </div>
+
+      {modalData && (
+        <div className="modal show fade d-block" tabIndex="-1" role="dialog">
+          <div className="modal-dialog" role="document">
+            <div className="modal-content p-3">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  {modalData.companyName} - {modalData.jobRole}
+                </h5>
+                <button type="button" className="btn-close" onClick={closeModal}></button>
+              </div>
+              <div className="modal-body">
+                <p><strong>Salary:</strong> {modalData.salaryPackage}</p>
+                <p><strong>Eligibility:</strong> {modalData.eligibilityCriteria}</p>
+                <p><strong>Date:</strong> {new Date(modalData.driveDate).toDateString()}</p>
+                <p><strong>Description:</strong> {modalData.description}</p>
+                {modalData.requiredSkills && modalData.requiredSkills.length > 0 && (
+                  <p><strong>Required Skills:</strong> {modalData.requiredSkills.join(', ')}</p>
+                )}
+
+                {/* AI Check Results */}
+                {aiCheckResult && (
+                  <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
+                    <h6>AI Match Analysis</h6>
+                    <p><strong>Match Percentage:</strong> {aiCheckResult.matchPercentage}%</p>
+                    <p><strong>Placement Probability:</strong> {aiCheckResult.placementProbability}%</p>
+                    <p><strong>Prediction:</strong> {aiCheckResult.prediction}</p>
+                    {aiCheckResult.missingSkills && aiCheckResult.missingSkills.length > 0 && (
+                      <div>
+                        <strong>Missing Skills:</strong>
+                        <ul>
+                          {aiCheckResult.missingSkills.map((skill, idx) => (
+                            <li key={idx}>{skill}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {aiCheckResult.recommendations && aiCheckResult.recommendations.length > 0 && (
+                      <div>
+                        <strong>Recommendations:</strong>
+                        <ul>
+                          {aiCheckResult.recommendations.map((rec, idx) => (
+                            <li key={idx}>{rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                {new Date(modalData.driveDate) >= new Date() && (
+                  <button
+                    className="btn btn-info"
+                    onClick={handleAICheck}
+                    disabled={loadingAI}
+                    style={{ marginRight: '10px' }}
+                  >
+                    {loadingAI ? 'Analyzing...' : '🤖 AI Check'}
+                  </button>
+                )}
+                {new Date(modalData.driveDate) >= new Date() ? (
+                  <a
+                    href={modalData.registrationLink}
+                    className="btn btn-primary"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Apply Now
+                  </a>
+                ) : (
+                  <button className="btn btn-secondary" disabled>
+                    Drive Closed
+                  </button>
+                )}
+                <button className="btn btn-outline-secondary" onClick={closeModal}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

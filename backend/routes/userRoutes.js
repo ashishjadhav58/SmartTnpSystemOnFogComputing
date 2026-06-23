@@ -59,6 +59,79 @@ router.post("/tpo/getdata/student/profilee/:email", async (req, res) => {
   }
 });
 
+// POST: Local signin (for offline mode when AWS is unavailable)
+router.post("/user/signin", async (req, res) => {
+  try {
+    handleJob();
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password are required" });
+    }
+    
+    // Find user by email (username is email in this system)
+    const user = await userdata.findOne({ email: username });
+    
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+    
+    // Check password (plain text comparison for now, or use bcrypt if passwords are hashed)
+    // Note: If passwords are stored as plain text, compare directly
+    // If passwords are hashed, use bcrypt.compare
+    let passwordMatch = false;
+    
+    if (user.password === password) {
+      // Plain text password match
+      passwordMatch = true;
+    } else {
+      // Try bcrypt comparison if password is hashed
+      try {
+        const bcrypt = require("bcrypt");
+        passwordMatch = await bcrypt.compare(password, user.password);
+      } catch (bcryptErr) {
+        // If bcrypt fails, assume plain text didn't match
+        passwordMatch = false;
+      }
+    }
+    
+    if (!passwordMatch) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+    
+    // Get current host IP for AI services
+    const protocol = req.protocol || 'http';
+    const host = req.get('host') || 'localhost:5000';
+    const hostname = host.split(':')[0];
+    const aiServiceBaseUrl = `http://${hostname}:8000`;
+    
+    // Return user data in same format as AWS response
+    res.json({
+      data: {
+        _id: user._id,
+        id: user.id || user._id.toString(),
+        username: user.username,
+        email: user.email,
+        accesstype: user.accesstype,
+        tpoemail: user.tpoemail,
+        classemail: user.classemail
+      },
+      ip: `${protocol}://${hostname}:5000`,
+      aiServices: {
+        baseUrl: aiServiceBaseUrl,
+        resume: `${aiServiceBaseUrl}/resume`,
+        predict: `${aiServiceBaseUrl}/predict`,
+        match: `${aiServiceBaseUrl}/match`,
+        chat: `${aiServiceBaseUrl}/resume/chat`
+      },
+      message: "Login Successful (Local Mode)"
+    });
+  } catch (err) {
+    console.error("Error in local signin:", err);
+    res.status(500).json({ error: "Failed to sign in", details: err.message });
+  }
+});
+
 // POST: Bulk import students (by TPO)
 router.post("/tpo/import-students", async (req, res) => {
   try {

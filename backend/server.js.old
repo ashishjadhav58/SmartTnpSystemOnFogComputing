@@ -1,0 +1,51 @@
+const express = require("express");
+const connectDB = require("./config/database");
+const corsMiddleware = require("./middleware/corsConfig");
+const { PORT } = require("./config/constants");
+const startCronSync = require("./utils/cronSync");
+
+// Import all route files
+const statusRoutes = require("./routes/statusRoutes");
+const userRoutes = require("./routes/userRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const driveRoutes = require("./routes/driveRoutes");
+const resourceRoutes = require("./routes/resourceRoutes");
+const tpoRoutes = require("./routes/tpoRoutes");
+const emailUrlRoutes = require("./routes/emailUrlRoutes");
+const aiRoutes = require("./routes/aiRoutes");
+const recruiterRoutes = require("./routes/recruiterRoutes");
+const resumeRoutes = require("./routes/resumeRoutes");
+const driveAiRoutes = require("./routes/driveAiRoutes");
+const syncRoutes = require("./routes/syncRoutes");
+
+// Initialize Express app
+const app = express();
+
+// Connect to database
+connectDB();
+
+// Middleware
+app.use(corsMiddleware);
+app.use(express.json());
+
+// Routes
+app.use("/", statusRoutes);
+app.use("/api", userRoutes);
+app.use("/api", messageRoutes);
+app.use("/api", driveRoutes);
+app.use("/api", resourceRoutes);
+app.use("/api", tpoRoutes);
+app.use("/api", emailUrlRoutes);
+app.use("/api", aiRoutes);
+app.use("/api", recruiterRoutes);
+app.use("/api", resumeRoutes);
+app.use("/api", driveAiRoutes);
+app.use("/", syncRoutes);
+
+// Start cron sync job
+startCronSync();
+
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
+});

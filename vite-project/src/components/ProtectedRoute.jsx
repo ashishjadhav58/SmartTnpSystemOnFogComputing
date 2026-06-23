@@ -1,12 +1,20 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { isAuthenticated, isRecruiterAuthenticated, hasAccessType } from '../utils/auth';
+import { isAuthenticated, isRecruiterAuthenticated, hasAccessType, isAdminAuthenticated } from '../utils/auth';
 
 /**
  * Protected Route Component
  * Redirects to login if user is not authenticated
  */
-export const ProtectedRoute = ({ children, requiredAccessType = null, requireRecruiter = false }) => {
+export const ProtectedRoute = ({ children, requiredAccessType = null, requireRecruiter = false, requireAdmin = false }) => {
+  // Check admin authentication if required
+  if (requireAdmin) {
+    if (!isAdminAuthenticated()) {
+      return <Navigate to="/admin/login" replace />;
+    }
+    return children;
+  }
+
   // Check recruiter authentication if required
   if (requireRecruiter) {
     if (!isRecruiterAuthenticated()) {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Navigate } from "react-router-dom";
+import { isVercelDomain, isIPAddress, getBackendUrl } from './utils/networkUtils';
 import './style.css';
 
 export default function Register() {
@@ -23,25 +24,85 @@ export default function Register() {
       }
       
       try {
-      const awsApiUrl = import.meta.env.VITE_AWS_API_GATEWAY || "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod";
-      const response = await axios.post(`${awsApiUrl}/signup`, data, {
-        headers: { 'Content-Type': 'application/json' }       
-      })
-      console.log(response.data);
-      setdata({
-        username: "",
-        email: "",
-        accesstype: "",
-        tpoemail: "",
-        classemail: "",
-        password: "",
-      });
-      alert("Sign up process is done successfully")
+        const awsApiUrl = import.meta.env.VITE_AWS_API_GATEWAY || "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod";
+        let response;
+        
+        // If Vercel domain, only use AWS
+        if (isVercelDomain()) {
+          console.log('[Signup] Vercel domain - using AWS only');
+          response = await axios.post(`${awsApiUrl}/signup`, data, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000
+          });
+        }
+        // If IP address, try AWS first, then fallback to local
+        else if (isIPAddress()) {
+          const localBackendUrl = getBackendUrl();
+          
+          console.log('[Signup] IP address detected - trying AWS first, then local fallback');
+          
+          try {
+            // Try AWS first with timeout
+            response = await Promise.race([
+              axios.post(`${awsApiUrl}/signup`, data, {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 5000
+              }),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('AWS timeout')), 5000)
+              )
+            ]);
+            
+            console.log('[Signup] AWS signup successful');
+          } catch (awsError) {
+            console.warn('[Signup] AWS signup failed, trying local server:', awsError.message);
+            
+            // AWS failed, try local fog server
+            try {
+              response = await axios.post(
+                `${localBackendUrl}/api/NewUser`,
+                data,
+                {
+                  headers: { 'Content-Type': 'application/json' },
+                  timeout: 10000
+                }
+              );
+              
+              console.log('[Signup] Local signup successful');
+            } catch (localError) {
+              console.error('[Signup] Local signup also failed:', localError);
+              throw new Error('Both AWS and local server are unavailable. Please check your network connection.');
+            }
+          }
+        }
+        // Default: use AWS only
+        else {
+          console.log('[Signup] Using AWS (default)');
+          response = await axios.post(`${awsApiUrl}/signup`, data, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000
+          });
+        }
+        
+        console.log(response.data);
+        setdata({
+          username: "",
+          email: "",
+          accesstype: "",
+          tpoemail: "",
+          classemail: "",
+          password: "",
+        });
+        alert("Sign up process is done successfully");
       }
       catch(error){
-        console.log("404 not found");
+        console.error("Signup error:", error);
         if (error.response?.data?.message) {
           alert(error.response.data.message);
+        } else if (error.message) {
+          alert(error.message);
+        } else {
+          alert("Sign up failed. Please try again.");
         }
       }
     };

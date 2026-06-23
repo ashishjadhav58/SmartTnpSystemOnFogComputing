@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setBackendUrl } from './store/backendSlice';
 import { isRecruiterAuthenticated, setRecruiterSession } from './utils/auth';
+import { isVercelDomain, isIPAddress, getBackendUrl, getAIServiceUrl } from './utils/networkUtils';
 import './style.css';
 
 export default function RecruiterLogin() {
@@ -35,22 +36,119 @@ export default function RecruiterLogin() {
     setLoading(true);
 
     try {
-      // Try cloud login first (same as regular login)
       const awsApiUrl = import.meta.env.VITE_AWS_API_GATEWAY || "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod";
-      const cloudResponse = await axios.post(
-        `${awsApiUrl}/signin`,
-        {
-          username: formData.email,
-          password: formData.password
+      
+      let cloudResponse;
+      let userData;
+      let fogIp;
+      let aiServices = {};
+      
+      // If Vercel domain, only use AWS
+      if (isVercelDomain()) {
+        console.log('[RecruiterLogin] Vercel domain - using AWS only');
+        cloudResponse = await axios.post(
+          `${awsApiUrl}/signin`,
+          {
+            username: formData.email,
+            password: formData.password
+          },
+          { timeout: 10000 }
+        );
+        userData = cloudResponse.data?.data;
+        fogIp = cloudResponse.data?.ip;
+        aiServices = cloudResponse.data?.aiServices || {};
+      }
+      // If IP address, try AWS first, then fallback to local
+      else if (isIPAddress()) {
+        const localBackendUrl = getBackendUrl();
+        const localAIServiceUrl = getAIServiceUrl();
+        
+        console.log('[RecruiterLogin] IP address detected - trying AWS first, then local fallback');
+        
+        try {
+          // Try AWS first with timeout
+          cloudResponse = await Promise.race([
+            axios.post(
+              `${awsApiUrl}/signin`,
+              {
+                username: formData.email,
+                password: formData.password
+              },
+              { timeout: 5000 }
+            ),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('AWS timeout')), 5000)
+            )
+          ]);
+          
+          console.log('[RecruiterLogin] AWS signin successful');
+          userData = cloudResponse.data?.data;
+          fogIp = cloudResponse.data?.ip;
+          // Use AI service URLs from AWS response (when online)
+          aiServices = cloudResponse.data?.aiServices || {};
+          console.log('[RecruiterLogin] AI Services from AWS:', aiServices);
+        } catch (awsError) {
+          console.warn('[RecruiterLogin] AWS signin failed, trying local server:', awsError.message);
+          
+          // AWS failed, try local recruiter login
+          try {
+            cloudResponse = await axios.post(
+              `${localBackendUrl}/api/recruiter/login`,
+              {
+                email: formData.email,
+                password: formData.password
+              },
+              { timeout: 10000 }
+            );
+            
+            console.log('[RecruiterLogin] Local signin successful');
+            // Format local response to match AWS format
+            userData = {
+              _id: cloudResponse.data?.recruiter?._id || cloudResponse.data?.recruiter?.email,
+              id: cloudResponse.data?.recruiter?._id || cloudResponse.data?.recruiter?.email,
+              email: cloudResponse.data?.recruiter?.email || formData.email,
+              username: cloudResponse.data?.recruiter?.username || formData.email,
+              companyName: cloudResponse.data?.recruiter?.companyName || '',
+              contactNumber: cloudResponse.data?.recruiter?.contactNumber || '',
+              accesstype: "Recruiter",
+              isApproved: cloudResponse.data?.recruiter?.isApproved !== false,
+              createdBy: cloudResponse.data?.recruiter?.createdBy || '',
+              tpoemail: cloudResponse.data?.recruiter?.createdBy || ''
+            };
+            fogIp = localBackendUrl;
+            aiServices = {
+              baseUrl: localAIServiceUrl,
+              resume: `${localAIServiceUrl}/resume`,
+              predict: `${localAIServiceUrl}/predict`,
+              match: `${localAIServiceUrl}/match`,
+              chat: `${localAIServiceUrl}/resume/chat`
+            };
+          } catch (localError) {
+            console.error('[RecruiterLogin] Local signin also failed:', localError);
+            throw new Error('Both AWS and local server are unavailable. Please check your network connection.');
+          }
         }
-      );
+      }
+      // Default: use AWS only
+      else {
+        console.log('[RecruiterLogin] Using AWS (default)');
+        cloudResponse = await axios.post(
+          `${awsApiUrl}/signin`,
+          {
+            username: formData.email,
+            password: formData.password
+          },
+          { timeout: 10000 }
+        );
+        userData = cloudResponse.data?.data;
+        fogIp = cloudResponse.data?.ip;
+        // Use AI service URLs from AWS response (when online)
+        aiServices = cloudResponse.data?.aiServices || {};
+        console.log('[RecruiterLogin] AI Services from AWS (default):', aiServices);
+      }
 
-      const userData = cloudResponse.data?.data;
-      const fogIp = cloudResponse.data?.ip;
-      const aiServices = cloudResponse.data?.aiServices || {};
-
-      // Check if user is a recruiter
-      if (userData && userData.accesstype === "Recruiter") {
+      // Check if user is a recruiter (from AWS or local)
+      if (userData && (userData.accesstype === "Recruiter" || userData.accesstype === undefined)) {
         // Set fog IP
         if (fogIp) {
           dispatch(setBackendUrl(fogIp));
@@ -58,20 +156,28 @@ export default function RecruiterLogin() {
         }
         
         // Store AI service URLs from signin response
+        // When online (AWS): Use AI service URLs from AWS response
+        // When offline (local): Use local IP:8000 (already set in local fallback)
         if (aiServices && Object.keys(aiServices).length > 0) {
           localStorage.setItem("aiServices", JSON.stringify(aiServices));
-          console.log('[RecruiterLogin] Stored AI services:', aiServices);
+          console.log('[RecruiterLogin] ✅ Stored AI services from response (online mode):', aiServices);
         } else {
-          // Fallback to default localhost if not provided
-          const defaultAiServices = {
+          // Fallback: If no AI services in response, determine based on network mode
+          const fallbackAiServices = isIPAddress() ? {
+            baseUrl: getAIServiceUrl(),
+            resume: `${getAIServiceUrl()}/resume`,
+            predict: `${getAIServiceUrl()}/predict`,
+            match: `${getAIServiceUrl()}/match`,
+            chat: `${getAIServiceUrl()}/resume/chat`
+          } : {
             baseUrl: 'http://localhost:8000',
             resume: 'http://localhost:8000/resume',
             predict: 'http://localhost:8000/predict',
             match: 'http://localhost:8000/match',
             chat: 'http://localhost:8000/resume/chat'
           };
-          localStorage.setItem("aiServices", JSON.stringify(defaultAiServices));
-          console.log('[RecruiterLogin] Using default AI services:', defaultAiServices);
+          localStorage.setItem("aiServices", JSON.stringify(fallbackAiServices));
+          console.log('[RecruiterLogin] ⚠️ Using fallback AI services:', fallbackAiServices);
         }
 
         // Format recruiter data to match expected format

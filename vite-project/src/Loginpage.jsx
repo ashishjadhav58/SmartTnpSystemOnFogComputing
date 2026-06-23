@@ -4,6 +4,8 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { setBackendUrl } from "./store/backendSlice";
 import { isAuthenticated, getCurrentUser, isRecruiterAuthenticated, getCurrentRecruiter } from './utils/auth';
+import { tryAWSWithLocalFallback, isVercelDomain, isIPAddress, getCurrentHostIP, getAIServiceUrl, getBackendUrl } from './utils/networkUtils';
+
 
 export default function Loginpage() {
   const dispatch = useDispatch();
@@ -125,17 +127,106 @@ export default function Loginpage() {
 
     try {
       const awsApiUrl = import.meta.env.VITE_AWS_API_GATEWAY || "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod";
-      const response = await axios.post(
-        `${awsApiUrl}/signin`,
-        {
-          username: data.username,
-          password: data.password
+      
+      let response;
+      let user;
+      let fogIp;
+      let aiServices = {};
+      
+      // If Vercel domain, only use AWS
+      if (isVercelDomain()) {
+        console.log('[Login] Vercel domain - using AWS only');
+        response = await axios.post(
+          `${awsApiUrl}/signin`,
+          {
+            username: data.username,
+            password: data.password
+          },
+          { timeout: 10000 }
+        );
+        user = response.data?.data;
+        fogIp = response.data.ip;
+        // Use AI service URLs from AWS response (when online)
+        aiServices = response.data?.aiServices || {};
+        console.log('[Login] AI Services from AWS (Vercel):', aiServices);
+      } 
+      // If IP address, try AWS first, then fallback to local
+      else if (isIPAddress()) {
+        const currentIP = getCurrentHostIP();
+        const localBackendUrl = getBackendUrl();
+        const localAIServiceUrl = getAIServiceUrl();
+        
+        console.log('[Login] IP address detected - trying AWS first, then local fallback');
+        
+        try {
+          // Try AWS first with timeout
+          response = await Promise.race([
+            axios.post(
+              `${awsApiUrl}/signin`,
+              {
+                username: data.username,
+                password: data.password
+              },
+              { timeout: 5000 }
+            ),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('AWS timeout')), 5000)
+            )
+          ]);
+          
+          console.log('[Login] AWS signin successful');
+          user = response.data?.data;
+          fogIp = response.data.ip;
+          // Use AI service URLs from AWS response (when online)
+          aiServices = response.data?.aiServices || {};
+          console.log('[Login] AI Services from AWS:', aiServices);
+        } catch (awsError) {
+          console.warn('[Login] AWS signin failed, trying local server:', awsError.message);
+          
+          // AWS failed, try local fog server
+          try {
+            response = await axios.post(
+              `${localBackendUrl}/api/user/signin`,
+              {
+                username: data.username,
+                password: data.password
+              },
+              { timeout: 10000 }
+            );
+            
+            console.log('[Login] Local signin successful');
+            user = response.data?.data || response.data?.user;
+            fogIp = response.data?.ip || localBackendUrl;
+            aiServices = response.data?.aiServices || {
+              baseUrl: localAIServiceUrl,
+              resume: `${localAIServiceUrl}/resume`,
+              predict: `${localAIServiceUrl}/predict`,
+              match: `${localAIServiceUrl}/match`,
+              chat: `${localAIServiceUrl}/resume/chat`
+            };
+          } catch (localError) {
+            console.error('[Login] Local signin also failed:', localError);
+            throw new Error('Both AWS and local server are unavailable. Please check your network connection.');
+          }
         }
-      );
-
-      const user = response.data?.data;
-      const fogIp = response.data.ip;
-      const aiServices = response.data?.aiServices || {};
+      }
+      // Default: use AWS only
+      else {
+        console.log('[Login] Using AWS (default)');
+        response = await axios.post(
+          `${awsApiUrl}/signin`,
+          {
+            username: data.username,
+            password: data.password
+          },
+          { timeout: 10000 }
+        );
+        user = response.data?.data;
+        fogIp = response.data.ip;
+        // Use AI service URLs from AWS response (when online)
+        aiServices = response.data?.aiServices || {};
+        console.log('[Login] AI Services from AWS (default):', aiServices);
+      }
       
       if (user) {
         // Remember email if checkbox is checked
@@ -149,20 +240,28 @@ export default function Loginpage() {
         localStorage.setItem("fogIp", fogIp);
         
         // Store AI service URLs from signin response
+        // When online (AWS): Use AI service URLs from AWS response
+        // When offline (local): Use local IP:8000 (already set in local fallback)
         if (aiServices && Object.keys(aiServices).length > 0) {
           localStorage.setItem("aiServices", JSON.stringify(aiServices));
-          console.log('[Login] Stored AI services:', aiServices);
+          console.log('[Login] ✅ Stored AI services from response (online mode):', aiServices);
         } else {
-          // Fallback to default localhost if not provided
-          const defaultAiServices = {
+          // Fallback: If no AI services in response, determine based on network mode
+          const fallbackAiServices = isIPAddress() ? {
+            baseUrl: getAIServiceUrl(),
+            resume: `${getAIServiceUrl()}/resume`,
+            predict: `${getAIServiceUrl()}/predict`,
+            match: `${getAIServiceUrl()}/match`,
+            chat: `${getAIServiceUrl()}/resume/chat`
+          } : {
             baseUrl: 'http://localhost:8000',
             resume: 'http://localhost:8000/resume',
             predict: 'http://localhost:8000/predict',
             match: 'http://localhost:8000/match',
             chat: 'http://localhost:8000/resume/chat'
           };
-          localStorage.setItem("aiServices", JSON.stringify(defaultAiServices));
-          console.log('[Login] Using default AI services:', defaultAiServices);
+          localStorage.setItem("aiServices", JSON.stringify(fallbackAiServices));
+          console.log('[Login] ⚠️ Using fallback AI services:', fallbackAiServices);
         }
         
         // Redirect based on access type

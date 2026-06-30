@@ -13,10 +13,14 @@ const AI_SERVICES = {
 };
 
 // AWS Lambda API Gateway
-const AWS_API_GATEWAY = "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod";
+const AWS_API_GATEWAY =
+  process.env.AWS_API_GATEWAY ||
+  process.env.VITE_AWS_API_GATEWAY ||
+  "https://32jndlu4qg.execute-api.ap-south-1.amazonaws.com/default/AshishProject";
 
 // Sync API endpoint
-const SYNC_API_ENDPOINT = `${AWS_API_GATEWAY}/syncdata`;
+const SYNC_API_ENDPOINT =
+  process.env.SYNC_API_ENDPOINT || `${AWS_API_GATEWAY}/syncdata`;
 
 module.exports = {
   FOG_API,

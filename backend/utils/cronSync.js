@@ -1,5 +1,4 @@
 const cron = require("node-cron");
-const { SYNC_API_ENDPOINT } = require("../config/constants");
 const Drive = require("../Models/drivedetail.js");
 const TpoEvent = require("../Models/TpoEvent.js");
 const Resource = require("../Models/Resouce.js");
@@ -7,7 +6,56 @@ const message = require("../Models/message.js");
 const Attendence = require("../Models/Attendence.js");
 const EmailUrl = require("../Models/EmailUrl.js");
 const axios = require("axios");
-const { FOG_API, AWS_API_GATEWAY } = require("../config/constants");
+const { FOG_API, SYNC_API_ENDPOINT } = require("../config/constants");
+
+const buildSyncHeaders = () => {
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  if (process.env.SYNC_API_KEY) {
+    headers["x-api-key"] = process.env.SYNC_API_KEY;
+  }
+
+  if (process.env.SYNC_API_AUTHORIZATION) {
+    headers.Authorization = process.env.SYNC_API_AUTHORIZATION;
+  }
+
+  return headers;
+};
+
+const postSyncPayload = async (payload) => {
+  const response = await axios.post(SYNC_API_ENDPOINT, payload, {
+    headers: buildSyncHeaders(),
+    timeout: 30000,
+    validateStatus: () => true,
+  });
+
+  if (response.status < 200 || response.status >= 300) {
+    const details = typeof response.data === "string"
+      ? response.data
+      : JSON.stringify(response.data);
+    throw new Error(`Sync request rejected with status ${response.status}: ${details}`);
+  }
+
+  return response;
+};
+
+const buildSyncPayload = (document, syncTable, keyAliases = []) => {
+  const documentId = document._id ? document._id.toString() : undefined;
+  const payload = {
+    ...document.toObject(),
+    id: documentId,
+    syncTable,
+    sourcefog: FOG_API,
+  };
+
+  for (const alias of keyAliases) {
+    payload[alias] = documentId;
+  }
+
+  return payload;
+};
 
 function startCronSync() {
   cron.schedule("*/1 * * * *", async () => {
@@ -21,12 +69,8 @@ function startCronSync() {
         console.log("No new Drive data found while sync...");
       } else {
         for (const drive of unsyncedDrives) {
-          const payload = {
-            ...drive.toObject(),
-            sourcefog: FOG_API,
-            syncTable: "1",
-          };
-          await axios.post(SYNC_API_ENDPOINT, payload);
+          const payload = buildSyncPayload(drive, "1", ["driveId"]);
+          await postSyncPayload(payload);
           drive.isSync = true;
           await drive.save();
         }
@@ -39,12 +83,8 @@ function startCronSync() {
         console.log("No new Event data found while sync...");
       } else {
         for (const event of unsyncedEvents) {
-          const payload = {
-            ...event.toObject(),
-            sourcefog: FOG_API,
-            syncTable: "2",
-          };
-          await axios.post(SYNC_API_ENDPOINT, payload);
+          const payload = buildSyncPayload(event, "2", ["eventId"]);
+          await postSyncPayload(payload);
           event.isSync = true;
           await event.save();
         }
@@ -57,12 +97,8 @@ function startCronSync() {
         console.log("No new Resource data found while sync...");
       } else {
         for (const res of unsyncedResources) {
-          const payload = {
-            ...res.toObject(),
-            sourcefog: FOG_API,
-            syncTable: "3",
-          };
-          await axios.post(SYNC_API_ENDPOINT, payload);
+          const payload = buildSyncPayload(res, "3", ["resourceId"]);
+          await postSyncPayload(payload);
           res.isSync = true;
           await res.save();
         }
@@ -75,12 +111,8 @@ function startCronSync() {
         console.log("No new Attendance data found while sync...");
       } else {
         for (const att of unsyncedAttendance) {
-          const payload = {
-            ...att.toObject(),
-            sourcefog: FOG_API,
-            syncTable: "5",
-          };
-          await axios.post(SYNC_API_ENDPOINT, payload);
+          const payload = buildSyncPayload(att, "5", ["attendanceId"]);
+          await postSyncPayload(payload);
           att.isSync = true;
           await att.save();
         }
@@ -93,12 +125,8 @@ function startCronSync() {
         console.log("No new Message data found while sync...");
       } else {
         for (const msg of unsyncedMessages) {
-          const payload = {
-            ...msg.toObject(),
-            sourcefog: FOG_API,
-            syncTable: "4",
-          };
-          await axios.post(SYNC_API_ENDPOINT, payload);
+          const payload = buildSyncPayload(msg, "4", ["messageId"]);
+          await postSyncPayload(payload);
           msg.isSync = true;
           await msg.save();
         }
@@ -111,12 +139,8 @@ function startCronSync() {
         console.log("No new EmailUrl data found while sync...");
       } else {
         for (const e of unsyncedEmailUrls) {
-          const payload = {
-            ...e.toObject(),
-            sourcefog: FOG_API,
-            syncTable: "6",
-          };
-          await axios.post(SYNC_API_ENDPOINT, payload);
+          const payload = buildSyncPayload(e, "6", ["emailId"]);
+          await postSyncPayload(payload);
           e.isSync = true;
           await e.save();
         }

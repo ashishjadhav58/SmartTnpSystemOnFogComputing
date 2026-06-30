@@ -5,6 +5,7 @@ export default function ProfileEdit() {
     const [patch,setpatch]=useState({})
     const [gotolog,setgotolog] = useState(0)
     const storedUser = JSON.parse(localStorage.getItem("user"));
+    const backendUrl = localStorage.getItem('fogIp') || 'http://localhost:5000';
     console.log(storedUser);
     
     const setdata = (event) => {
@@ -20,7 +21,7 @@ export default function ProfileEdit() {
         if(patch.confirm === storedUser.password){
             console.log(true);
             try{
-                const response = await axios.patch(`http://192.168.0.105:5000/api/accounts/${storedUser._id}`, patch, {
+                const response = await axios.patch(`${backendUrl}/api/accounts/${storedUser._id}`, patch, {
                     headers: { 'Content-Type': 'application/json' }
                 })
                 console.log(response);

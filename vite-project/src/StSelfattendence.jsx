@@ -40,7 +40,7 @@ export default function StSelfattendence() {
     const attendanceData = {
       userEmail: user.email,
       eventId: selectedEvent._id,
-      eventName: selectedEvent.name,
+      eventName: selectedEvent.lectureName || selectedEvent.name,
       ...form,
       markedAt: new Date().toISOString(),
     };
@@ -66,7 +66,7 @@ export default function StSelfattendence() {
       ) : (
         todayEvents.map((event, index) => (
           <div key={index} className="card text-center mb-4 p-3 mx-auto" style={{ maxWidth: "500px" }}>
-            <h4>{event.name}</h4>
+            <h4>{event.lectureName}</h4>
             <p>{new Date(event.eventDateTime).toLocaleString()}</p>
             <button className="btn btn-success" onClick={() => handleAttendanceClick(event)}>
               Mark as Attended
@@ -76,54 +76,64 @@ export default function StSelfattendence() {
       )}
 
       {/* Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Feedback for: {selectedEvent?.name}</Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Your Views</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="views"
-                value={form.views}
-                onChange={handleFormChange}
-                required
-              />
-            </Form.Group>
+      {showModal && (
+        <div className="modal show fade d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered" role="document">
+            <div className="modal-content p-3">
+              <div className="modal-header">
+                <h5 className="modal-title">Feedback for: {selectedEvent?.lectureName || selectedEvent?.name}</h5>
+                <button type="button" className="btn-close" aria-label="Close" onClick={() => setShowModal(false)}></button>
+              </div>
+              <form onSubmit={handleSubmit}>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label className="form-label">Your Views</label>
+                    <textarea
+                      className="form-control"
+                      rows={2}
+                      name="views"
+                      value={form.views}
+                      onChange={handleFormChange}
+                      required
+                    />
+                  </div>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Feedback</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="feedback"
-                value={form.feedback}
-                onChange={handleFormChange}
-                required
-              />
-            </Form.Group>
+                  <div className="mb-3">
+                    <label className="form-label">Feedback</label>
+                    <textarea
+                      className="form-control"
+                      rows={2}
+                      name="feedback"
+                      value={form.feedback}
+                      onChange={handleFormChange}
+                      required
+                    />
+                  </div>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Suggestions</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                name="suggestion"
-                value={form.suggestion}
-                onChange={handleFormChange}
-              />
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="primary" type="submit">
-              Present
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+                  <div className="mb-3">
+                    <label className="form-label">Suggestions</label>
+                    <textarea
+                      className="form-control"
+                      rows={2}
+                      name="suggestion"
+                      value={form.suggestion}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
+                    Close
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    Present
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -15,6 +15,17 @@ import { store } from './store/store';
 import { clearInvalidSession } from './utils/clearInvalidSession';
 // import Tp from './Tp.jsx'; // if you need this later
 
+// Add an Axios request interceptor to dynamically inject the ngrok skip-browser-warning header
+axios.interceptors.request.use((config) => {
+  const url = config.url || '';
+  // Only inject the header if the request goes to an ngrok tunnel URL
+  if (url.includes('ngrok-free.app') || url.includes('ngrok.io')) {
+    config.headers['ngrok-skip-browser-warning'] = 'true';
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
 if (typeof window !== 'undefined') {
   window.axios = axios;
   window.bootstrap = bootstrap;

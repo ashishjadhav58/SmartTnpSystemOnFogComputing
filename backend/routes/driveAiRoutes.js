@@ -88,10 +88,9 @@ router.post("/drive/ai-check", async (req, res) => {
     const resumeText = JSON.stringify(student.resume || {});
     
     let matchResponse;
+    const aiServiceBaseUrl = getAiServiceUrl(req);
+    const skillMatchUrl = `${aiServiceBaseUrl}/match/skills`;
     try {
-      // Get AI service URL from request or use default
-      const aiServiceBaseUrl = getAiServiceUrl(req);
-      const skillMatchUrl = `${aiServiceBaseUrl}/match/skills`;
       console.log("Calling skill match service:", skillMatchUrl);
       matchResponse = await axios.post(skillMatchUrl, {
         studentSkills: student.skills || [],
@@ -136,10 +135,8 @@ router.post("/drive/ai-check", async (req, res) => {
     }
     
     let predictionResponse;
+    const predictionUrl = `${aiServiceBaseUrl}/predict/placement`;
     try {
-      // Use same AI service base URL
-      const aiServiceBaseUrl = getAiServiceUrl(req);
-      const predictionUrl = `${aiServiceBaseUrl}/predict/placement`;
       console.log("Calling placement prediction service:", predictionUrl);
       predictionResponse = await axios.post(predictionUrl, {
         resumeScore: student.resumeScore || 0,

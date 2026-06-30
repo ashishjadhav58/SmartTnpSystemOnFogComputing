@@ -451,11 +451,33 @@ export default function ResumeBuilder() {
       const base64PDF = await generatePDFAsBase64();
       console.log('PDF generated successfully, size:', base64PDF.length, 'characters');
       
-      // Step 2: Upload PDF to AWS
+      // Step 2: Upload PDF to AWS (with local fallback if S3 fails or offline)
       console.log('Step 2: Uploading PDF to AWS...');
       const filename = `${currentUser?.username || currentUser?.email || 'student'}_resume_${Date.now()}.pdf`;
-      pdfUrl = await uploadPDFToAWS(base64PDF, filename);
-      console.log('PDF uploaded to AWS, URL:', pdfUrl);
+      try {
+        pdfUrl = await uploadPDFToAWS(base64PDF, filename);
+        console.log('PDF uploaded to AWS successfully, URL:', pdfUrl);
+      } catch (awsUploadErr) {
+        console.warn('AWS S3 upload failed, attempting local upload fallback...', awsUploadErr.message);
+        try {
+          const payload = {
+            userId: user?.email || user?._id || user?.id || 'unknown',
+            filename: filename,
+            fileContent: base64PDF
+          };
+          const localResponse = await axios.post(`${backendUrl}/api/resume/upload`, payload, {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            timeout: 30000
+          });
+          pdfUrl = localResponse.data.resumeUrl;
+          console.log('PDF uploaded to local node successfully, URL:', pdfUrl);
+        } catch (localUploadErr) {
+          console.error('Local node upload fallback also failed:', localUploadErr.message);
+          throw new Error(`AWS upload failed (${awsUploadErr.message}) and local fallback failed (${localUploadErr.message})`);
+        }
+      }
       
       // Step 3: Save resume data with PDF URL
       console.log('Step 3: Saving resume data with PDF URL...');

@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 const connectDB = require("./config/database");
 const corsMiddleware = require("./middleware/corsConfig");
 const { PORT } = require("./config/constants");
@@ -28,6 +29,7 @@ connectDB();
 // Middleware
 app.use(corsMiddleware);
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
 // Routes
 app.use("/", statusRoutes);

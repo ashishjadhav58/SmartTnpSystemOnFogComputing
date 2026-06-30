@@ -349,7 +349,7 @@ exports.handler = async (event) => {
         "Access-Control-Allow-Methods":
             "POST,GET,PUT,DELETE,OPTIONS",
         "Access-Control-Allow-Headers":
-            "Content-Type",
+            "Content-Type, ngrok-skip-browser-warning",
         "Content-Type": "application/json"
     };
 
@@ -813,7 +813,206 @@ exports.handler = async (event) => {
                 })
             };
         }
-                // ---------------------------------------------------------
+
+        // ---------------------------------------------------------
+        // GET ALL USERS (WITH OPTIONAL FILTERING)
+        // ---------------------------------------------------------
+        if (method === "GET" && path.endsWith("/users")) {
+            console.log("[API] Incoming request: GET /users");
+            const queryParams = event.queryStringParameters || {};
+            const role = queryParams.role ? queryParams.role.toLowerCase() : null;
+            const tpoemail = queryParams.tpoemail;
+            const classemail = queryParams.classemail;
+
+            try {
+                const result = await docclient.send(
+                    new ScanCommand({
+                        TableName: table
+                    })
+                );
+                let users = result.Items || [];
+                
+                // Filter in memory
+                if (role) {
+                    users = users.filter(u => u.accesstype && u.accesstype.toLowerCase() === role);
+                }
+                if (tpoemail) {
+                    users = users.filter(u => u.tpoemail === tpoemail);
+                }
+                if (classemail) {
+                    users = users.filter(u => u.classemail === classemail);
+                }
+
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify(users)
+                };
+            } catch (err) {
+                console.error("[DATABASE] [FAIL] Scan failed on table EvolveAuthTable:", err);
+                return {
+                    statusCode: 500,
+                    headers,
+                    body: JSON.stringify({ message: "Unexpected server error." })
+                };
+            }
+        }
+
+        // ---------------------------------------------------------
+        // GET CLASS TEACHERS BY TPO EMAIL
+        // ---------------------------------------------------------
+        if (method === "GET" && path.endsWith("/users/class-teachers")) {
+            console.log("[API] Incoming request: GET /users/class-teachers");
+            const queryParams = event.queryStringParameters || {};
+            const tpoemail = queryParams.tpoemail;
+
+            if (!tpoemail) {
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ message: "tpoemail query parameter is required" })
+                };
+            }
+
+            try {
+                const result = await docclient.send(
+                    new ScanCommand({
+                        TableName: table
+                    })
+                );
+                const users = result.Items || [];
+                
+                // Filter for Class Teachers mapped to this TPO
+                const classTeachers = users.filter(u => 
+                    u.accesstype && 
+                    u.accesstype.toLowerCase() === "class teacher" && 
+                    u.tpoemail === tpoemail
+                );
+
+                return {
+                    statusCode: 200,
+                    headers,
+                    body: JSON.stringify(classTeachers)
+                };
+            } catch (err) {
+                console.error("[DATABASE] [FAIL] Scan failed for class teachers:", err);
+                return {
+                    statusCode: 500,
+                    headers,
+                    body: JSON.stringify({ message: "Unexpected server error." })
+                };
+            }
+        }
+
+        // ---------------------------------------------------------
+        // BULK SIGNUP STUDENTS
+        // ---------------------------------------------------------
+        if (method === "POST" && path.endsWith("/bulk-signup")) {
+            console.log("[API] Incoming request: POST /bulk-signup");
+            
+            let parsedBody;
+            try {
+                parsedBody = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+            } catch (e) {
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ message: "Invalid JSON request body." })
+                };
+            }
+
+            const { users } = parsedBody;
+
+            if (!users || !Array.isArray(users)) {
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ message: "users array is required" })
+                };
+            }
+
+            if (!_uuidV4) {
+                _uuidV4 = (await import("uuid")).v4;
+            }
+
+            let insertedCount = 0;
+            let skippedCount = 0;
+            const skipped = [];
+
+            const fogServers = await getAllFogServers();
+
+            for (const user of users) {
+                const { username, email, password, accesstype, tpoemail, classemail } = user;
+                
+                if (!email) {
+                    skippedCount++;
+                    skipped.push("missing_email");
+                    continue;
+                }
+
+                // Check duplicate
+                try {
+                    const existingUser = await docclient.send(
+                        new GetCommand({
+                            TableName: table,
+                            Key: { email }
+                        })
+                    );
+
+                    if (existingUser.Item) {
+                        skippedCount++;
+                        skipped.push(email);
+                        continue;
+                    }
+
+                    const id = _uuidV4();
+                    const data = {
+                        id,
+                        username: username || "",
+                        email,
+                        classemail: classemail || "",
+                        tpoemail: tpoemail || "",
+                        accesstype: accesstype || "Student",
+                        password: password || "",
+                        updatedAt: new Date().toISOString()
+                    };
+
+                    await docclient.send(
+                        new PutCommand({
+                            TableName: table,
+                            Item: data
+                        })
+                    );
+
+                    // Broadcast to active fog servers
+                    fogServers.forEach(server => {
+                        axios.post(
+                            `${server.serverUrl}/NewUser`,
+                            data
+                        ).catch(() => {});
+                    });
+
+                    insertedCount++;
+                } catch (dbErr) {
+                    console.error(`[DATABASE] Failed to process bulk user ${email}:`, dbErr);
+                    skippedCount++;
+                    skipped.push(email);
+                }
+            }
+
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    message: "Bulk signup process completed",
+                    insertedCount,
+                    skippedCount,
+                    skipped
+                })
+            };
+        }
+
+        // ---------------------------------------------------------
         // SYNC DATA
         // ---------------------------------------------------------
         if (

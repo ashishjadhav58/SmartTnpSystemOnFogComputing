@@ -65,15 +65,39 @@ export default function ResumePage() {
           };
           
           const awsApiUrl = import.meta.env.VITE_AWS_API_GATEWAY || "https://8aw0vy096i.execute-api.ap-south-1.amazonaws.com/prod";
-          const response = await axios.post(
-            `${awsApiUrl}/uploadResume`,
-            payload
-          );
+          let finalUrl;
+          try {
+            const response = await axios.post(
+              `${awsApiUrl}/uploadResume`,
+              payload
+            );
+            finalUrl = response.data.resumeUrl;
+            console.log('PDF uploaded to AWS S3 successfully, URL:', finalUrl);
+          } catch (awsErr) {
+            console.warn('AWS S3 upload failed, attempting local upload fallback...', awsErr.message);
+            try {
+              const localResponse = await axios.post(
+                `${backendUrl}/api/resume/upload`,
+                payload,
+                {
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  timeout: 30000
+                }
+              );
+              finalUrl = localResponse.data.resumeUrl;
+              console.log('PDF uploaded locally successfully, URL:', finalUrl);
+            } catch (localErr) {
+              console.error('Local upload fallback failed:', localErr.message);
+              throw new Error(`AWS S3 upload failed (${awsErr.message}) and local upload fallback failed (${localErr.message})`);
+            }
+          }
           
-          setResumeUrl(response.data.resumeUrl);
+          setResumeUrl(finalUrl);
           setSuccess('File uploaded successfully!');
         } catch (err) {
-          setError(err.response?.data?.message || 'Failed to upload file to AWS');
+          setError(err.message || 'Failed to upload file');
         } finally {
           setLoading(false);
         }

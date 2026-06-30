@@ -18,11 +18,12 @@ export default function MessageInterface() {
   const user = getCurrentUser();
   const [data, setData] = useState([]);
   const [message, setMessage] = useState("");
+  const backendUrl = localStorage.getItem('fogIp') || 'http://localhost:5000';
 
   useEffect(() => {
     const getData = async () => {
       try {
-        const response = await axios.get(`http://192.168.0.105:5000/api/message/get/perticular/${end1}/${end2}`);
+        const response = await axios.get(`${backendUrl}/api/message/get/perticular/${end1}/${end2}`);
         setData(response.data);
       } catch (error) {
         console.error("Error fetching messages:", error);
@@ -32,13 +33,13 @@ export default function MessageInterface() {
     getData();
     const interval = setInterval(getData, 5000);
     return () => clearInterval(interval);
-  }, [end1, end2]);
+  }, [end1, end2, backendUrl]);
 
   const sendMessage = async () => {
     if (message.trim() === "") return;
 
     try {
-      await axios.post("http://192.168.0.105:5000/api/message", {
+      await axios.post(`${backendUrl}/api/message`, {
         sender: end1,
         receiver: end2,
         msg: message

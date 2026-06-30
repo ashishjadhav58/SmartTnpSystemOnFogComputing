@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const fs = require("fs");
+const path = require("path");
 const userdata = require("../Models/userdata.js");
 const Resume = require("../Models/Resume.js");
 const axios = require("axios");
@@ -336,6 +338,52 @@ router.get("/resume/extract/:studentId", async (req, res) => {
   } catch (err) {
     console.error("Error extracting resume data:", err);
     res.status(500).json({ error: "Failed to extract resume data", details: err.message });
+  }
+});
+
+// POST: Upload resume locally (fallback when AWS fails or offline)
+router.post("/resume/upload", async (req, res) => {
+  try {
+    handleJob();
+    const { userId, filename, fileContent } = req.body;
+
+    if (!userId || !filename || !fileContent) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    // Convert base64 string to binary buffer
+    const buffer = Buffer.from(fileContent, "base64");
+
+    // Construct paths to public/resumes directory
+    const publicDir = path.join(__dirname, "..", "public");
+    const resumesDir = path.join(publicDir, "resumes");
+    
+    // Ensure folders exist
+    if (!fs.existsSync(publicDir)) {
+      fs.mkdirSync(publicDir, { recursive: true });
+    }
+    if (!fs.existsSync(resumesDir)) {
+      fs.mkdirSync(resumesDir, { recursive: true });
+    }
+
+    // Write file to local disk
+    const filePath = path.join(resumesDir, filename);
+    fs.writeFileSync(filePath, buffer);
+
+    // Construct local URL
+    const host = req.get("host") || "localhost:5000";
+    const protocol = req.protocol || "http";
+    const resumeUrl = `${protocol}://${host}/resumes/${filename}`;
+
+    console.log(`[Local Upload] Successfully saved resume for ${userId} to ${filePath}. URL: ${resumeUrl}`);
+
+    res.json({
+      message: "Resume uploaded locally successfully",
+      resumeUrl: resumeUrl
+    });
+  } catch (err) {
+    console.error("[Local Upload] [FAIL] Error saving resume file locally:", err);
+    res.status(500).json({ error: "Failed to upload resume locally", details: err.message });
   }
 });
 

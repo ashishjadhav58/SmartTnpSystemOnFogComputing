@@ -1,0 +1,12 @@
+{
+  "name": "fog-stress-testing",
+  "version": "1.0.0",
+  "description": "Industrial grade stress testing script comparing centralized cloud vs distributed fog topologies.",
+  "main": "stress-test.js",
+  "scripts": {
+    "test": "node stress-test.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.8"
+  }
+}

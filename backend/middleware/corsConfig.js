@@ -4,7 +4,7 @@ const cors = require("cors");
 const corsOptions = {
   origin: '*', // Allow all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-ai-service-url'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-ai-service-url', 'ngrok-skip-browser-warning'],
   credentials: false, // Set to false when using origin: '*'
   preflightContinue: false,
   optionsSuccessStatus: 204
